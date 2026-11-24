@@ -64,27 +64,24 @@ function camWanted() {
     return !(att.breaks || []).some((b) => new Date(b.s) >= from);
   });
 }
-function showWork() {
-  $('.pulse i').className = 'bi bi-briefcase-fill';
-  $('#cam-t').textContent = 'Selamat bekerja, semangat ya!';
-  $('#cam-p').textContent = `Kamera terbuka otomatis menjelang istirahat (${BREAK_TIME.join(' & ')}).`;
-  $('#btn-cam').classList.remove('d-none');
-}
+// Isi tengah area scan; keterangan (p) disembunyikan bila kosong supaya tetap center
+function setIdle(title, sub) { $('#cam-t').textContent = title; const p = $('#cam-p'); p.textContent = sub || ''; p.classList.toggle('d-none', !sub); }
+function showWork() { $('.pulse i').className = 'bi bi-briefcase-fill'; setIdle('Selamat bekerja!'); }
 function syncCam() {
   if (!onHome || !att || att.check_out || busy) return;
   if (camWanted()) { if (!stream) startCam(); } else if (stream && !manual) { stopCam(); showWork(); }
 }
 setInterval(syncCam, 20000);
 async function startCam() {
-  if (att?.check_out) { $('#cam-t').textContent = 'Absensi Hari Ini Selesai'; $('#cam-p').textContent = 'Terima kasih, sampai jumpa besok!'; return $('#btn-cam').classList.add('d-none'); }
+  if (att?.check_out) return setIdle('Absensi Hari Ini Selesai', 'Terima kasih, sampai jumpa besok!');
   if (!manual && att && !camWanted()) { stopCam(); return showWork(); }
   $('.pulse i').className = 'bi bi-qr-code-scan';
-  if (stream) return; $('#cam-t').textContent = 'Silakan Scan QR untuk Kehadiran'; $('#cam-p').textContent = 'Menyiapkan kamera...';
+  if (stream) return; setIdle('Silakan Scan QR untuk Kehadiran', 'Menyiapkan kamera...');
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); const v = $('#vid'); v.srcObject = stream; await v.play();
-    scanning = true; $('#scan').classList.add('live'); $('#btn-cam').classList.add('d-none'); track = stream.getVideoTracks()[0];
+    scanning = true; $('#scan').classList.add('live'); track = stream.getVideoTracks()[0];
     if (track.getCapabilities?.().torch) $('#torch').classList.add('can'); loop();
-  } catch { $('#cam-p').textContent = 'Izinkan akses kamera pada browser, lalu tekan Buka Kamera.'; $('#btn-cam').classList.remove('d-none'); }
+  } catch { setIdle('Kamera belum aktif', 'Izinkan akses kamera di browser, lalu ketuk 2x layar ini.'); }
 }
 function stopCam() { scanning = false; stream?.getTracks().forEach((t) => t.stop()); stream = null; $('#scan').classList.remove('live'); }
 function loop() {
@@ -108,7 +105,14 @@ async function onCode(token) {
   } catch (e) { result('bad', 'Absen Gagal', e.message); }
 }
 $('#res-ok').onclick = () => { $('#res').classList.remove('on'); busy = false; manual = false; if (att?.check_out) { stopCam(); startCam(); } else syncCam(); };
-$('#btn-cam').onclick = () => { manual = true; startCam(); };
+// Ketuk 2x pada area scan = buka kamera manual (kondisi urgent)
+let lastTap = 0, lastX = 0, lastY = 0;
+$('#scan').addEventListener('pointerup', (e) => {
+  const now = Date.now(), dbl = now - lastTap < 350 && Math.hypot(e.clientX - lastX, e.clientY - lastY) < 40;
+  lastTap = dbl ? 0 : now; lastX = e.clientX; lastY = e.clientY;
+  if (!dbl || stream || busy || att?.check_out) return;
+  manual = true; navigator.vibrate?.(30); startCam();
+});
 $('#torch').onclick = async (e) => { const on = !e.currentTarget.classList.contains('on'); try { await track.applyConstraints({ advanced: [{ torch: on }] }); e.currentTarget.classList.toggle('on', on); } catch {} };
 // ---------- Riwayat ----------
 async function loadRiwayat() {
