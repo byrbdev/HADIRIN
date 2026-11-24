@@ -1,0 +1,38 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"><title>HADIRIN</title>
+<meta name="theme-color" content="#051C12"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/assets/images/icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="/assets/libs/bootstrap/css/bootstrap.min.css"><link rel="stylesheet" href="/assets/libs/bootstrap-icons/bootstrap-icons.css"><link rel="stylesheet" href="/assets/css/main.css"><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+<div id="splash"><div class="sp-logo"><i class="bi bi-person-check-fill"></i></div><div class="sp-name">HADIRIN</div><div class="sp-tag">Absen cepat, tanpa ribet</div></div>
+<div class="app">
+<section class="view" id="v-login"><div class="login-hero"><div class="sp-logo" style="width:64px;height:64px;font-size:2rem;border-radius:20px;animation:none"><i class="bi bi-person-check-fill"></i></div><h1 class="mt-3 mb-1" style="font-weight:800">Halo, Selamat Datang</h1><p class="mb-0" style="color:var(--text-sidebar-muted)">Masuk untuk mulai absen hari ini.</p></div>
+<form class="login-card" id="fl"><div class="mb-3"><label class="form-label-custom" for="em">Email</label><input id="em" type="email" class="form-control-custom" autocomplete="username" required></div>
+<div class="mb-3"><label class="form-label-custom" for="pw">Password</label><input id="pw" type="password" class="form-control-custom" autocomplete="current-password" required></div>
+<div id="err" class="text-danger small mb-2"></div><button class="btn-custom btn-custom-primary w-100" type="submit">Masuk <i class="bi bi-arrow-right"></i></button></form></section>
+
+<section class="view" id="v-home"><div class="top"><div><small id="gr"></small><h1 id="nm"></h1></div><div class="clock" id="clk"></div></div>
+<div class="card alert-green-card"><div class="position-relative z-index-2"><span class="alert-green-badge" id="st-b">Belum Absen</span><div class="alert-green-date" id="st-d"></div><div class="alert-green-text" id="st-t"></div></div>
+<svg class="alert-green-bg-shape" viewBox="0 0 100 100" fill="none"><g transform="translate(50,50)"><rect x="-6" y="-45" width="12" height="90" rx="6" fill="#B4F105"/><rect x="-6" y="-45" width="12" height="90" rx="6" fill="#B4F105" transform="rotate(60)"/><rect x="-6" y="-45" width="12" height="90" rx="6" fill="#B4F105" transform="rotate(120)"/></g></svg></div>
+<div class="scan" id="scan"><video id="vid" playsinline muted></video><div class="frame"><i></i><i></i><i></i><i></i></div><div class="line"></div>
+<div class="chip" id="chip"><b></b><span>Mencari lokasi...</span></div><button class="torch" id="torch" aria-label="Senter"><i class="bi bi-lightning-charge-fill"></i></button>
+<div class="idle"><div><div class="pulse"><i class="bi bi-qr-code-scan"></i></div><h5 id="cam-t">Silakan Scan QR untuk Kehadiran</h5><p class="mut" id="cam-p" style="color:var(--text-sidebar-muted)">Menyiapkan kamera...</p><button class="btn-custom btn-custom-primary d-none" id="btn-cam"><i class="bi bi-camera-fill"></i> Buka Kamera</button></div></div></div>
+<canvas id="cv" class="d-none"></canvas><div class="hint" id="hint"></div>
+<div class="quick"><button data-go="riwayat"><i class="bi bi-clock-history"></i>Riwayat</button><button data-go="izin"><i class="bi bi-file-earmark-medical"></i>Izin / Sakit</button></div></section>
+
+<section class="view" id="v-riwayat"><div class="top"><h1>Riwayat</h1><div class="d-flex align-items-center gap-2"><button class="btn-table-action" id="pm"><i class="bi bi-chevron-left"></i></button><b id="ym" style="min-width:110px;text-align:center"></b><button class="btn-table-action" id="nm2"><i class="bi bi-chevron-right"></i></button></div></div>
+<div class="sum" id="sum"></div><div id="rlist"></div></section>
+
+<section class="view" id="v-izin"><div class="top"><h1>Izin / Sakit</h1></div>
+<form class="sheet" id="fi"><div class="seg" id="seg"><button type="button" data-j="izin" class="on">Izin</button><button type="button" data-j="sakit">Sakit</button></div>
+<div class="row g-2 mb-3"><div class="col-6"><label class="form-label-custom" for="ds">Mulai</label><input type="date" id="ds" class="form-control-custom" required></div><div class="col-6"><label class="form-label-custom" for="de">Selesai</label><input type="date" id="de" class="form-control-custom" required></div></div>
+<div class="mb-3"><label class="form-label-custom" for="rs">Alasan</label><textarea id="rs" rows="3" class="form-control-custom" required></textarea></div>
+<div class="mb-3"><label class="form-label-custom" for="file">Lampiran (foto surat dokter, opsional)</label><input type="file" id="file" accept="image/*" class="form-control-custom"></div>
+<button class="btn-custom btn-custom-primary w-100" type="submit">Kirim Pengajuan</button></form>
+<h6 class="mt-4 mb-2">Pengajuan Saya</h6><div id="llist"></div></section>
+
+<section class="view" id="v-profil"><div class="top"><h1>Profil</h1></div><div class="sheet text-center"><div class="av" id="av"></div><h5 class="mb-0" id="pn"></h5><div class="mut" id="pp"></div></div>
+<div class="sheet"><div class="mut">Email</div><div id="pe" class="mb-2"></div><div class="mut">NIP / ID</div><div id="pi" class="mb-2"></div><div class="mut">Telepon</div><div id="pt"></div></div>
+<form class="sheet" id="fp"><h6 class="mb-3">Ubah Password</h6><div class="mb-3"><input type="password" id="np" class="form-control-custom" placeholder="Password baru (min. 6)" minlength="6" required></div><button class="btn-custom btn-custom-primary w-100" type="submit">Simpan Password</button></form>
+<button class="btn-custom btn-custom-light w-100 mb-2" id="btn-install"><i class="bi bi-phone"></i> Pasang di Layar Utama</button><button class="btn-custom btn-custom-danger w-100" id="btn-out"><i class="bi bi-box-arrow-right"></i> Keluar</button></section>
+</div>
+<nav class="nav" id="nav" style="display:none"><button data-v="home"><i class="bi bi-qr-code-scan"></i>Scan</button><button data-v="riwayat"><i class="bi bi-clock-history"></i>Riwayat</button><button data-v="izin"><i class="bi bi-file-earmark-medical"></i>Izin</button><button data-v="profil"><i class="bi bi-person"></i>Profil</button></nav>
+<div class="res" id="res"><div class="res-card"><div id="res-i"></div><h4 class="mt-3" id="res-t"></h4><p class="mut" id="res-p"></p><button class="btn-custom btn-custom-primary w-100 d-none" id="res-ok">Selesai</button></div></div>
+<script src="/assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script><script src="/config.js"></script><script src="/assets/js/core.js"></script><script src="/assets/js/app.js"></script></body></html>

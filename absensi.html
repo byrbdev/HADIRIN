@@ -1,0 +1,43 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Absensi - HADIRIN</title><link rel="icon" href="/assets/images/favicon.ico">
+<link rel="stylesheet" href="/assets/libs/bootstrap/css/bootstrap.min.css"><link rel="stylesheet" href="/assets/libs/bootstrap-icons/bootstrap-icons.css"><link rel="stylesheet" href="/assets/css/main.css"><link rel="stylesheet" href="/assets/css/hadirin.css"></head><body>
+<div id="app-content">
+<div class="page-header"><div><h1 class="page-title">Absensi</h1><p class="page-subtitle" id="per">Seluruh data absensi karyawan.</p></div></div>
+<div class="table-card-custom"><div class="table-header-control"><div class="table-search-box"><i class="bi bi-search table-search-icon"></i><input type="text" id="q" class="table-search-input" placeholder="Cari nama atau NIP..."></div>
+<div class="table-filter-group flex-wrap">
+<div class="dropdown"><button class="btn-table-action dropdown-toggle" type="button" id="fbtn" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-funnel"></i> Per Bulan</button>
+<ul class="dropdown-menu" id="fmenu"><li><a class="dropdown-item" href="#" data-v="hari">Per Hari</a></li><li><a class="dropdown-item" href="#" data-v="bulan">Per Bulan</a></li><li><a class="dropdown-item" href="#" data-v="rentang">Per Tanggal (Rentang)</a></li></ul></div>
+<div id="w-hari" class="d-none"><input type="date" id="d-day" class="form-control-custom d-inline-block w-auto"></div>
+<div id="w-bulan"><input type="month" id="d-month" class="form-control-custom d-inline-block w-auto"></div>
+<div id="w-rentang" class="d-none"><input type="date" id="d-from" class="form-control-custom d-inline-block w-auto"> <span class="mx-1">-</span> <input type="date" id="d-to" class="form-control-custom d-inline-block w-auto"></div>
+<button class="btn-table-action" type="button" id="btn-export"><i class="bi bi-file-earmark-arrow-down"></i> Export</button></div></div>
+<div class="table-responsive"><table class="table-custom"><thead><tr><th>Tanggal</th><th>Karyawan</th><th>Jam Masuk</th><th>Jam Keluar</th><th>Total Jam Kerja</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="table-footer-control"><span class="table-pagination-info" id="info"></span><nav aria-label="Page navigation"><ul class="pagination mb-0 gap-1" id="pg"></ul></nav></div></div></div>
+<script src="/assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script src="/config.js"></script><script src="/assets/js/core.js"></script>
+<script>
+let rows=[],mode='bulan',ws='08:00:00',view=[];
+const pg=pager($('#info'),$('#pg'),10,()=>draw());
+const wib=wibDate();$('#d-day').value=wib;$('#d-month').value=wib.slice(0,7);$('#d-from').value=wib.slice(0,8)+'01';$('#d-to').value=wib;
+const fd=d=>new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+const late=r=>r.check_in&&new Date(r.check_in).toLocaleTimeString('en-GB',{timeZone:'Asia/Jakarta',hour12:false})>ws;
+const dur=r=>r.check_out?fmtDur(r.check_in,r.check_out):(r.work_date===wibDate()?fmtDur(r.check_in,null):'-');
+function range(){if(mode==='hari'){const d=$('#d-day').value;return[d,d]}
+ if(mode==='bulan'){const m=$('#d-month').value;if(!m)return[];const [y,mo]=m.split('-').map(Number);return[m+'-01',new Date(Date.UTC(y,mo,0)).toISOString().slice(0,10)]}
+ return[$('#d-from').value,$('#d-to').value];}
+function showMode(){for(const k of ['hari','bulan','rentang'])$('#w-'+k).classList.toggle('d-none',k!==mode);}
+function draw(){const q=$('#q').value.toLowerCase();
+ view=rows.filter(r=>((r.profiles?.full_name||'')+(r.profiles?.nip||'')).toLowerCase().includes(q));
+ $('#rows').innerHTML=pg.slice(view).map(r=>`<tr><td>${fd(r.work_date)}</td><td><div class="table-user-cell"><div><div class="table-user-name">${esc(r.profiles?.full_name)}</div><div class="table-user-sub">${esc(r.profiles?.position||'Staff')}</div></div></div></td>
+ <td>${fmtTime(r.check_in)}</td><td>${fmtTime(r.check_out)}</td><td>${dur(r)}</td><td><span class="badge-table ${late(r)?'pending':'success'}">${late(r)?'Terlambat':'Tepat Waktu'}</span></td></tr>`).join('')||'<tr><td colspan="6" class="text-center text-muted py-4">Tidak ada data absensi pada periode ini</td></tr>';}
+async function load(){const [a,b]=range();if(!a||!b)return;$('#per').textContent=a===b?`Data absensi ${fd(a)}`:`Data absensi ${fd(a)} sampai ${fd(b)}`;
+ let all=[],from=0;for(;;){const {data,error}=await sb.from('attendance').select('*,profiles(full_name,nip,position)').gte('work_date',a).lte('work_date',b).order('work_date',{ascending:false}).order('check_in').range(from,from+999);
+  if(error){toast(error.message,false);break}all=all.concat(data);if(data.length<1000)break;from+=1000;}
+ rows=all;pg.reset();draw();}
+filterDropdown($('#fbtn'),$('#fmenu'),'',v=>{mode=v;showMode();load()});
+for(const i of ['#d-day','#d-month','#d-from','#d-to'])$(i).onchange=load;
+$('#q').oninput=()=>{pg.reset();draw()};
+$('#btn-export').onclick=()=>{const c=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+ const csv=['Tanggal,Nama,NIP,Jam Masuk,Jam Keluar,Total Jam Kerja,Status',...view.map(r=>[r.work_date,r.profiles?.full_name,r.profiles?.nip,fmtTime(r.check_in),fmtTime(r.check_out),dur(r),late(r)?'Terlambat':'Tepat Waktu'].map(c).join(','))].join('\r\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download=`absensi-${range().join('_')}.csv`;a.click();};
+initAdmin('absensi').then(async m=>{if(!m)return;const {data:s}=await sb.from('settings').select('work_start').eq('id',1).single();if(s?.work_start)ws=s.work_start;load();
+ sb.channel('abs').on('postgres_changes',{event:'*',schema:'public',table:'attendance'},load).subscribe();});
+</script></body></html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Dashboard - HADIRIN</title><link rel="icon" href="/assets/images/favicon.ico">
+<link rel="stylesheet" href="/assets/libs/bootstrap/css/bootstrap.min.css"><link rel="stylesheet" href="/assets/libs/bootstrap-icons/bootstrap-icons.css"><link rel="stylesheet" href="/assets/css/main.css"><link rel="stylesheet" href="/assets/css/hadirin.css"></head><body>
+<div id="app-content">
+<div class="page-header"><div><h1 class="page-title">Dashboard</h1><p class="page-subtitle">Rekap kehadiran hari ini, otomatis ganti setiap hari.</p></div>
+<button class="btn-custom btn-custom-primary" id="btn-qr"><i class="bi bi-qr-code"></i> Tampilkan QR Hari Ini</button></div>
+<div class="row g-4 mb-4"><div class="col-md-4"><div class="card alert-green-card"><div class="position-relative z-index-2"><span class="alert-green-badge">Hari Ini</span><div class="alert-green-date" id="g-date"></div><div class="alert-green-text" id="g-text">0 karyawan hadir hari ini</div></div>
+<a href="/absensi" class="alert-green-link z-index-2"><span>Lihat Absensi</span><i class="bi bi-arrow-right"></i></a>
+<svg class="alert-green-bg-shape" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><g transform="translate(50,50)"><rect x="-6" y="-45" width="12" height="90" rx="6" ry="6" fill="#B4F105"/><rect x="-6" y="-45" width="12" height="90" rx="6" ry="6" fill="#B4F105" transform="rotate(60)"/><rect x="-6" y="-45" width="12" height="90" rx="6" ry="6" fill="#B4F105" transform="rotate(120)"/></g></svg></div></div>
+<div class="col-md-4"><div class="card card-stat h-100 d-flex flex-column justify-content-between"><div><div class="card-header"><span class="stat-label">Tidak Hadir</span><div class="dropdown"><button class="card-more-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More Options"><i class="bi bi-three-dots"></i></button><ul class="dropdown-menu dropdown-menu-end dropdown-menu-custom"><li><a class="dropdown-item" href="#" data-refresh><i class="bi bi-arrow-repeat"></i> Refresh</a></li></ul></div></div><div class="stat-value" id="s-absen">0</div></div></div></div>
+<div class="col-md-4"><div class="card card-stat h-100 d-flex flex-column justify-content-between"><div><div class="card-header"><span class="stat-label">Izin / Sakit</span><div class="dropdown"><button class="card-more-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More Options"><i class="bi bi-three-dots"></i></button><ul class="dropdown-menu dropdown-menu-end dropdown-menu-custom"><li><a class="dropdown-item" href="#" data-refresh><i class="bi bi-arrow-repeat"></i> Refresh</a></li></ul></div></div><div class="stat-value" id="s-izin">0</div></div></div></div>
+</div>
+<div class="table-card-custom" id="tbl"><div class="table-header-control"><div class="table-search-box"><i class="bi bi-search table-search-icon"></i><input type="text" id="q" class="table-search-input" placeholder="Cari nama karyawan..."></div>
+<div class="table-filter-group"><span class="badge-table success">Realtime</span></div></div>
+<div class="table-responsive"><table class="table-custom"><thead><tr><th>Nama Karyawan</th><th>Jam Masuk</th><th>Jam Keluar</th><th>Total Jam Kerja</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+<div class="modal fade" id="qrModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content text-center p-4">
+<h5 class="card-title">QR Absensi HADIRIN</h5><p class="text-muted" id="qr-date"></p><div id="qr" class="d-flex justify-content-center my-3"></div><small class="text-muted">Berganti otomatis setiap hari (WIB).</small></div></div></div></div>
+<script src="/assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script src="/config.js"></script><script src="/assets/js/core.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+let rowsData=[];
+function draw(){const q=$('#q').value.toLowerCase();
+ $('#rows').innerHTML=rowsData.filter(r=>r.name.toLowerCase().includes(q)).map(r=>`<tr><td><div class="table-user-cell"><div><div class="table-user-name">${esc(r.name)}</div><div class="table-user-sub">${esc(r.sub)}</div></div></div></td><td>${fmtTime(r.in)}</td><td>${fmtTime(r.out)}</td><td>${fmtDur(r.in,r.out)}</td></tr>`).join('')||'<tr><td colspan="4" class="text-center text-muted py-4">Belum ada yang absen hari ini</td></tr>';}
+async function load(){
+ const day=wibDate();
+ const [emp,att,lv]=await Promise.all([
+  sb.from('profiles').select('id,full_name,nip,position').eq('role','employee').eq('active',true),
+  sb.from('attendance').select('*').eq('work_date',day).order('check_in'),
+  sb.from('leaves').select('user_id').eq('status','approved').lte('start_date',day).gte('end_date',day)]);
+ const info=Object.fromEntries((emp.data||[]).map(e=>[e.id,e])), n=Object.keys(info).length;
+ const hadir=(att.data||[]).filter(a=>info[a.user_id]), izin=new Set((lv.data||[]).map(l=>l.user_id).filter(i=>info[i]));
+ $('#g-date').textContent=new Date(day).toLocaleDateString('id-ID',{dateStyle:'long',timeZone:'UTC'});
+ $('#g-text').textContent=`${hadir.length} karyawan hadir hari ini`;
+ $('#s-absen').textContent=Math.max(0,n-hadir.length-izin.size);$('#s-izin').textContent=izin.size;
+ rowsData=hadir.map(a=>({name:info[a.user_id].full_name,sub:info[a.user_id].position||'Staff',in:a.check_in,out:a.check_out}));draw();
+}
+$('#q').oninput=draw;
+document.addEventListener('click',e=>{if(e.target.closest('[data-refresh]')){e.preventDefault();load();}});
+initAdmin('dashboard').then(me=>{ if(!me)return; load();
+ sb.channel('rt').on('postgres_changes',{event:'*',schema:'public',table:'attendance'},load).on('postgres_changes',{event:'*',schema:'public',table:'leaves'},load).subscribe();
+ setInterval(load,60000); });
+$('#btn-qr').onclick=async()=>{ try{ const {date,token}=await api('/api/qr','GET');
+ $('#qr').innerHTML=''; new QRCode($('#qr'),{text:token,width:260,height:260});
+ $('#qr-date').textContent=new Date(date).toLocaleDateString('id-ID',{dateStyle:'full',timeZone:'UTC'}); new bootstrap.Modal('#qrModal').show(); }catch(e){toast(e.message,false)} };
+</script></body></html>

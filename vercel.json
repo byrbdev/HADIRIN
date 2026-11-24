@@ -1,0 +1,1 @@
+{ "cleanUrls": true, "rewrites": [{ "source": "/", "destination": "/dashboard" }, { "source": "/config.js", "destination": "/api/config" }] }

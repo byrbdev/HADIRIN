@@ -1,0 +1,32 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Keterangan - HADIRIN</title><link rel="icon" href="/assets/images/favicon.ico">
+<link rel="stylesheet" href="/assets/libs/bootstrap/css/bootstrap.min.css"><link rel="stylesheet" href="/assets/libs/bootstrap-icons/bootstrap-icons.css"><link rel="stylesheet" href="/assets/css/main.css"><link rel="stylesheet" href="/assets/css/hadirin.css"></head><body>
+<div id="app-content">
+<div class="page-header"><div><h1 class="page-title">Keterangan</h1><p class="page-subtitle">Pengajuan izin dan sakit dari karyawan.</p></div></div>
+<div class="table-card-custom"><div class="table-header-control"><div class="table-search-box"><i class="bi bi-search table-search-icon"></i><input type="text" id="q" class="table-search-input" placeholder="Cari nama karyawan..."></div>
+<div class="table-filter-group"><div class="dropdown"><button class="btn-table-action dropdown-toggle" type="button" id="fbtn" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-funnel"></i> Semua Status</button><ul class="dropdown-menu" id="fmenu"><li><a class="dropdown-item" href="#" data-v="">Semua Status</a></li><li><a class="dropdown-item" href="#" data-v="pending">Menunggu</a></li><li><a class="dropdown-item" href="#" data-v="approved">Disetujui</a></li><li><a class="dropdown-item" href="#" data-v="rejected">Ditolak</a></li></ul></div></div></div>
+<div class="table-responsive"><table class="table-custom"><thead><tr><th>Karyawan</th><th>Jenis</th><th>Tanggal</th><th>Status</th><th class="text-center">Aksi</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="table-footer-control"><span class="table-pagination-info" id="info"></span><nav aria-label="Page navigation"><ul class="pagination mb-0 gap-1" id="pg"></ul></nav></div></div>
+
+<div class="modal fade" id="m" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content p-4"><h5 class="card-title mb-3" id="d-name"></h5><div id="d-body" class="mb-4"></div>
+<div class="d-flex gap-2" id="d-act"><button class="btn-custom btn-custom-primary" data-s="approved">Setujui</button><button class="btn-custom btn-custom-danger" data-s="rejected">Tolak</button><button class="btn-custom btn-custom-light" data-bs-dismiss="modal">Tutup</button></div></div></div></div></div>
+<script src="/assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script src="/config.js"></script><script src="/assets/js/core.js"></script>
+<script>
+let list=[],cur=null,flt='';const ST={pending:['pending','Menunggu'],approved:['success','Disetujui'],rejected:['failed','Ditolak']};
+const dt=d=>new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+const pg=pager($('#info'),$('#pg'),10,()=>draw());
+function draw(){const q=$('#q').value.toLowerCase();
+ const rows=pg.slice(list.filter(l=>(!flt||l.status===flt)&&(l.profiles?.full_name||'').toLowerCase().includes(q)));
+ $('#rows').innerHTML=rows.map(l=>`<tr><td><div class="table-user-cell"><div><div class="table-user-name">${esc(l.profiles?.full_name)}</div><div class="table-user-sub">${esc(l.profiles?.position||'Staff')}</div></div></div></td><td class="text-capitalize table-product-name">${l.type}</td><td>${dt(l.start_date)} - ${dt(l.end_date)}</td>
+ <td><span class="badge-table ${ST[l.status][0]}">${ST[l.status][1]}</span></td><td><div class="d-flex justify-content-center gap-1"><a href="#" class="table-btn-action" title="Lihat detail" data-id="${l.id}"><i class="bi bi-eye"></i></a></div></td></tr>`).join('')||'<tr><td colspan="5" class="text-center text-muted py-4">Tidak ada data</td></tr>';}
+async function load(){const {data}=await sb.from('leaves').select('*,profiles(full_name,position)').order('created_at',{ascending:false});list=data||[];draw();}
+$('#q').oninput=()=>{pg.reset();draw()};filterDropdown($('#fbtn'),$('#fmenu'),'',v=>{flt=v;pg.reset();draw()});
+$('#rows').onclick=async e=>{const a=e.target.closest('[data-id]');if(!a)return;e.preventDefault();cur=list.find(l=>l.id==a.dataset.id);
+ let att='<span class="text-muted">Tidak ada lampiran</span>';
+ if(cur.attachment_path){const {data}=await sb.storage.from('leave-files').createSignedUrl(cur.attachment_path,300);if(data)att=`<a href="${data.signedUrl}" target="_blank"><img src="${data.signedUrl}" class="img-fluid rounded mt-1" alt="Lampiran"></a>`;}
+ $('#d-name').textContent=cur.profiles?.full_name;
+ $('#d-body').innerHTML=`<p class="mb-1"><b>Jenis:</b> <span class="text-capitalize">${cur.type}</span></p><p class="mb-1"><b>Tanggal:</b> ${dt(cur.start_date)} - ${dt(cur.end_date)}</p><p class="mb-1"><b>Status:</b> <span class="badge-table ${ST[cur.status][0]}">${ST[cur.status][1]}</span></p><p class="mb-2"><b>Alasan:</b> ${esc(cur.reason)||'-'}</p><b>Lampiran:</b><br>${att}`;
+ $('#d-act').querySelectorAll('[data-s]').forEach(b=>b.style.display=cur.status==='pending'?'':'none');bootstrap.Modal.getOrCreateInstance('#m').show();};
+$('#d-act').onclick=async e=>{const s=e.target.dataset.s;if(!s)return;const {error}=await sb.from('leaves').update({status:s}).eq('id',cur.id);
+ if(error)return toast(error.message,false);bootstrap.Modal.getInstance('#m').hide();toast('Status diperbarui');load();};
+initAdmin('keterangan').then(m=>{if(!m)return;load();sb.channel('lv').on('postgres_changes',{event:'*',schema:'public',table:'leaves'},load).subscribe();});
+</script></body></html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Karyawan - HADIRIN</title><link rel="icon" href="/assets/images/favicon.ico">
+<link rel="stylesheet" href="/assets/libs/bootstrap/css/bootstrap.min.css"><link rel="stylesheet" href="/assets/libs/bootstrap-icons/bootstrap-icons.css"><link rel="stylesheet" href="/assets/css/main.css"><link rel="stylesheet" href="/assets/css/hadirin.css"></head><body>
+<div id="app-content">
+<div class="page-header"><div><h1 class="page-title">Karyawan</h1><p class="page-subtitle">Kelola data karyawan dan akses login app.</p></div>
+<button class="btn-custom btn-custom-primary" id="btn-add"><i class="bi bi-person-plus-fill"></i> Tambah Karyawan</button></div>
+<div class="table-card-custom"><div class="table-header-control"><div class="table-search-box"><i class="bi bi-search table-search-icon"></i><input type="text" id="q" class="table-search-input" placeholder="Cari nama atau NIP..."></div>
+<div class="table-filter-group"><div class="dropdown"><button class="btn-table-action dropdown-toggle" type="button" id="fbtn" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-funnel"></i> Semua Status</button><ul class="dropdown-menu" id="fmenu"><li><a class="dropdown-item" href="#" data-v="">Semua Status</a></li><li><a class="dropdown-item" href="#" data-v="1">Aktif</a></li><li><a class="dropdown-item" href="#" data-v="0">Nonaktif</a></li></ul></div></div></div>
+<div class="table-responsive"><table class="table-custom"><thead><tr><th>Karyawan</th><th>Telepon</th><th>Status</th><th class="text-center">Aksi</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="table-footer-control"><span class="table-pagination-info" id="info"></span><nav aria-label="Page navigation"><ul class="pagination mb-0 gap-1" id="pg"></ul></nav></div></div>
+
+<div class="modal fade" id="m" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><form class="modal-content p-4" id="f"><h5 class="card-title mb-4" id="mt"></h5><div class="mb-3"><label for="full_name" class="form-label-custom">Nama lengkap</label><input type="text" id="full_name" class="form-control-custom" required></div><div class="mb-3"><label for="nip" class="form-label-custom">NIP / ID Karyawan</label><input type="text" id="nip" class="form-control-custom" ></div><div class="mb-3"><label for="position" class="form-label-custom">Jabatan</label><input type="text" id="position" class="form-control-custom" ></div><div class="mb-3"><label for="phone" class="form-label-custom">Telepon</label><input type="text" id="phone" class="form-control-custom" ></div><div class="mb-3"><label for="email" class="form-label-custom">Email (login app)</label><input type="email" id="email" class="form-control-custom" required></div><div class="mb-3"><label for="password" class="form-label-custom">Password</label><input type="password" id="password" class="form-control-custom" ></div><small class="text-muted d-block mb-3" id="pwhint"></small>
+<div class="form-switch-custom mb-4"><input class="form-switch-input-custom" type="checkbox" id="active" checked><label class="form-switch-label" for="active">Akun aktif</label></div>
+<div class="d-flex gap-2"><button class="btn-custom btn-custom-primary" type="submit">Simpan</button><button class="btn-custom btn-custom-light" type="button" data-bs-dismiss="modal">Batal</button></div></form></div></div></div>
+<script src="/assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script src="/config.js"></script><script src="/assets/js/core.js"></script>
+<script>
+let list=[],editing=null,flt='';const modal=()=>bootstrap.Modal.getOrCreateInstance('#m');
+const pg=pager($('#info'),$('#pg'),10,()=>draw());
+function draw(){const q=$('#q').value.toLowerCase();
+ const rows=pg.slice(list.filter(p=>(p.full_name+(p.nip||'')).toLowerCase().includes(q)&&(flt===''||String(+p.active)===flt)));
+ $('#rows').innerHTML=rows.map(p=>`<tr><td><div class="table-user-cell"><div><div class="table-user-name">${esc(p.full_name)}</div><div class="table-user-sub">${esc(p.position||'Staff')}</div></div></div></td><td>${esc(p.phone)||'-'}</td>
+ <td><span class="badge-table ${p.active?'success':'failed'}">${p.active?'Aktif':'Nonaktif'}</span></td><td><div class="d-flex justify-content-center gap-1"><a href="#" class="table-btn-action" title="Edit" data-id="${p.id}"><i class="bi bi-pencil"></i></a></div></td></tr>`).join('')||'<tr><td colspan="4" class="text-center text-muted py-4">Belum ada karyawan</td></tr>';}
+async function load(){const {data}=await sb.from('profiles').select('*').eq('role','employee').order('full_name');list=data||[];draw();}
+function open_(p){editing=p;$('#mt').textContent=p?'Edit Karyawan':'Tambah Karyawan';
+ for(const k of ['full_name','nip','position','phone'])$('#'+k).value=p?.[k]||'';$('#active').checked=p?p.active:true;
+ $('#email').value='';$('#email').required=!p;$('#password').required=!p;$('#password').value='';
+ $('#pwhint').textContent=p?'Kosongkan email/password jika tidak diubah.':'Password minimal 6 karakter.';modal().show();}
+$('#btn-add').onclick=()=>open_(null);$('#q').oninput=()=>{pg.reset();draw()};
+filterDropdown($('#fbtn'),$('#fmenu'),'',v=>{flt=v;pg.reset();draw()});
+$('#rows').onclick=e=>{const a=e.target.closest('[data-id]');if(a){e.preventDefault();open_(list.find(p=>p.id===a.dataset.id));}};
+$('#f').onsubmit=async e=>{e.preventDefault();const b={full_name:$('#full_name').value,nip:$('#nip').value,position:$('#position').value,phone:$('#phone').value,active:$('#active').checked,email:$('#email').value||undefined,password:$('#password').value||undefined};
+ try{editing?await api('/api/employee','PATCH',{...b,id:editing.id}):await api('/api/employee','POST',b);modal().hide();toast('Data tersimpan');load();}catch(err){toast(err.message,false)}};
+initAdmin('karyawan').then(m=>m&&load());
+</script></body></html>
