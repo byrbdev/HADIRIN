@@ -32,7 +32,7 @@ function renderStatus() {
   const dur = (n) => n >= 60 ? HOURS.fmt(n) : `${n}m`;
   x.innerHTML = m.canOut
     ? `<div class="st-main">Sudah boleh pulang</div><div class="st-sub">Istirahat ${dur(m.breakMin)}</div>`
-    : `<div class="st-main">Pulang paling cepat <b>${fmtTime(m.earliest)}</b></div><div class="st-sub">Istirahat ${dur(m.breakMin)}` + (m.lateMin ? ` &nbsp;•&nbsp; Telat ${dur(m.lateMin)}` : '') + `</div>` + (m.lateMin ? `<div class="st-tip">Kurangi dengan potong istirahat atau pulang lebih lambat</div>` : '');
+    : `<div class="st-main">Pulang paling cepat <b>${fmtTime(m.earliest)}</b></div><div class="st-sub">Istirahat ${dur(m.breakMin)}` + (m.lateMin ? ` &nbsp;•&nbsp; Telat ${dur(m.lateMin)}` : '') + `</div>` + (m.lateMin ? `<div class="st-tip">Potong istirahat atau pulang lebih lambat</div>` : '');
   seg.classList.remove('d-none'); $('#m-out').disabled = !m.canOut; $('#m-out').style.opacity = m.canOut ? 1 : .45; if (!m.canOut && mode === 'out') mode = 'break';
   seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.m === mode));
   $('#hint').textContent = mode === 'out' ? 'Scan QR untuk absen pulang' : 'Scan QR saat keluar istirahat';

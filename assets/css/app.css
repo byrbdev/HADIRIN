@@ -13,9 +13,9 @@ body{background:var(--bg-canvas,#F4F6F5);-webkit-tap-highlight-color:transparent
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}.top h1{font-size:1.35rem;font-weight:800;margin:0}.top small{color:var(--text-muted-green)}
 .clock{font-weight:800;font-size:1.25rem;font-variant-numeric:tabular-nums}
 .alert-green-card{min-height:150px;margin-bottom:1rem}
-.alert-green-card #st-x{font-size:inherit!important;opacity:1!important;margin-top:.25rem;padding-right:84px}
-.alert-green-card .alert-green-text{padding-right:84px;font-size:1.05rem}
-.alert-green-card .alert-green-bg-shape{width:96px;height:96px;bottom:-24px;right:-24px;opacity:.9}
+.alert-green-card #st-x{font-size:inherit!important;opacity:1!important;margin-top:.25rem;padding-right:112px}
+.alert-green-card .alert-green-text{font-size:1.05rem}
+.alert-green-card .alert-green-bg-shape{width:150px;height:150px;bottom:-34px;right:-34px;opacity:.95}
 .st-main{font-size:.95rem;font-weight:600;line-height:1.35}.st-main b{font-weight:800;color:var(--brand-lime)}
 .st-sub{font-size:.8rem;opacity:.8;margin-top:.15rem}
 .st-tip{font-size:.72rem;opacity:.6;margin-top:.35rem;line-height:1.35}
