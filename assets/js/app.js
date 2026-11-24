@@ -66,16 +66,17 @@ function camWanted() {
 }
 // Isi tengah area scan; keterangan (p) disembunyikan bila kosong supaya tetap center
 function setIdle(title, sub) { $('#cam-t').textContent = title; const p = $('#cam-p'); p.textContent = sub || ''; p.classList.toggle('d-none', !sub); }
-function showWork() { $('.pulse i').className = 'bi bi-briefcase-fill'; setIdle('Selamat bekerja!'); }
+const setIcon = (c) => { $('.pulse i').className = 'bi ' + c; };
+function showWork() { setIcon('bi-briefcase-fill'); setIdle('Selamat bekerja!'); }
 function syncCam() {
   if (!onHome || !att || att.check_out || busy) return;
   if (camWanted()) { if (!stream) startCam(); } else if (stream && !manual) { stopCam(); showWork(); }
 }
 setInterval(syncCam, 20000);
 async function startCam() {
-  if (att?.check_out) return setIdle('Absensi Hari Ini Selesai', 'Terima kasih, sampai jumpa besok!');
+  if (att?.check_out) { setIcon('bi-check2-circle'); return setIdle('Absensi Hari Ini Selesai', 'Terima kasih, sampai jumpa besok!'); }
   if (!manual && att && !camWanted()) { stopCam(); return showWork(); }
-  $('.pulse i').className = 'bi bi-qr-code-scan';
+  setIcon('bi-qr-code-scan');
   if (stream) return; setIdle('Silakan Scan QR untuk Kehadiran', 'Menyiapkan kamera...');
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); const v = $('#vid'); v.srcObject = stream; await v.play();
