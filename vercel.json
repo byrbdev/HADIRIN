@@ -1,1 +1,11 @@
-{ "cleanUrls": true, "rewrites": [{ "source": "/", "destination": "/dashboard" }, { "source": "/config.js", "destination": "/api/config" }] }
+{
+  "framework": null,
+  "buildCommand": null,
+  "installCommand": "npm install",
+  "outputDirectory": ".",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/", "destination": "/dashboard" },
+    { "source": "/config.js", "destination": "/api/config" }
+  ]
+}
