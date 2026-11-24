@@ -10,5 +10,9 @@
 if(CFG.dev){$('#email').value=CFG.dev.email||'';$('#pw').value=CFG.dev.password||'';$('#err').insertAdjacentHTML('beforebegin','<div class="small text-muted mb-2">Mode dev: kredensial default terisi otomatis.</div>');}
 {const q=new URLSearchParams(location.search).get('e');if(q)$('#err').textContent=q;}
 $('#f').onsubmit=async e=>{e.preventDefault();const{error}=await sb.auth.signInWithPassword({email:($('#email').value.trim().includes('@')?$('#email').value.trim():$('#email').value.trim().toLowerCase()+'@byrb.vercel.app'),password:$('#pw').value});
-if(error)return $('#err').textContent='Username/email atau password salah';location.href='/dashboard'};
+if(error)return $('#err').textContent='Username/email atau password salah';
+const{data:p,error:pe}=await sb.from('profiles').select('role,active').eq('id',(await sb.auth.getUser()).data.user.id).single();
+if(pe||!p){await sb.auth.signOut();return $('#err').textContent=pe?'Gagal membaca profiles: '+pe.message:'Akun belum punya data di tabel profiles.'}
+if(!p.active){await sb.auth.signOut();return $('#err').textContent='Akun tidak aktif'}
+location.href=p.role==='admin'?'/dashboard':'/app'};
 </script></body></html>

@@ -30,6 +30,7 @@ async function initAdmin(active) {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return (location.href = '/login');
   const { data: me, error: pe } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+  if (me && me.role === 'employee' && me.active) return (location.href = '/app');
   if (!me || me.role !== 'admin') { await sb.auth.signOut(); const why = pe ? 'Gagal membaca profiles: ' + pe.message : !me ? 'Akun belum punya data di tabel profiles. Jalankan: npm run seed' : 'Akun ini bukan admin'; return (location.href = '/login?e=' + encodeURIComponent(why)); }
   const content = $('#app-content');
   const side = document.createElement('div'); side.className = 'sidebar-wrapper'; side.id = 'sidebar';

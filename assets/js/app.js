@@ -14,6 +14,7 @@ function show(v) {
 async function enter() {
   const { data: { session } } = await sb.auth.getSession(); if (!session) return show('login');
   const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+  if (p && p.role === 'admin' && p.active) return (location.href = '/dashboard');
   if (!p || p.role !== 'employee' || !p.active) { await sb.auth.signOut(); $('#err').textContent = p?.role === 'admin' ? 'Akun admin: gunakan dashboard admin.' : 'Akun tidak aktif atau tidak ditemukan.'; return show('login'); }
   me = { ...p, email: session.user.email };
   const { data: s } = await sb.from('settings').select('work_start').eq('id', 1).single(); if (s?.work_start) ws = s.work_start; show('home');
