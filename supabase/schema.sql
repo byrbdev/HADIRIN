@@ -8,6 +8,7 @@ create table attendance(
   id bigserial primary key, user_id uuid not null references profiles on delete cascade,
   work_date date not null, check_in timestamptz, check_out timestamptz,
   in_lat float8, in_lng float8, out_lat float8, out_lng float8,
+  breaks jsonb not null default '[]'::jsonb,  -- scan istirahat: [{"s":iso,"e":iso|null}]
   unique(user_id, work_date));
 create table leaves(
   id bigserial primary key, user_id uuid not null references profiles on delete cascade,
@@ -18,7 +19,8 @@ create table leaves(
 create table settings(
   id int primary key default 1 check (id=1),
   office_lat float8 default -6.9175, office_lng float8 default 107.6191, radius_m int default 100,
-  work_start time default '08:00', work_end time default '17:00');
+  work_start time default '08:00', work_end time default '17:00',
+  target_minutes int not null default 420);  -- kerja bersih minimal (menit) untuk boleh pulang
 insert into settings default values;
 
 create function is_admin() returns boolean language sql security definer stable as

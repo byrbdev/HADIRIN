@@ -1,8 +1,8 @@
 // HADIRIN app karyawan. Memakai helper dari core.js ($, sb, api, toast, fmtTime, fmtDur, wibDate, esc)
-let me, att, ws = '08:00:00', stream, track, scanning = false, busy = false, watch = null, lastBad = '', ym = wibDate().slice(0, 7), jenis = 'izin', dp;
+let me, att, ws = '08:00:00', target = 420, mode = 'break', stream, track, scanning = false, busy = false, watch = null, lastBad = '', ym = wibDate().slice(0, 7), jenis = 'izin', dp;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const fd = (d) => new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-const isLate = (r) => r.check_in && new Date(r.check_in).toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour12: false }) > ws;
+const calc = (r) => HOURS.summarize(r, Date.now(), target, ws);
 const ST = { pending: ['pending', 'Menunggu'], approved: ['success', 'Disetujui'], rejected: ['failed', 'Ditolak'] };
 function show(v) {
   if (v !== 'home') leaveHome();
@@ -17,16 +17,24 @@ async function enter() {
   if (p && p.role === 'admin' && p.active) return (location.href = '/dashboard');
   if (!p || p.role !== 'employee' || !p.active) { await sb.auth.signOut(); $('#err').textContent = p?.role === 'admin' ? 'Akun admin: gunakan dashboard admin.' : 'Akun tidak aktif atau tidak ditemukan.'; return show('login'); }
   me = { ...p, email: session.user.email };
-  const { data: s } = await sb.from('settings').select('work_start').eq('id', 1).single(); if (s?.work_start) ws = s.work_start; show('home');
+  const { data: s } = await sb.from('settings').select('work_start,target_minutes').eq('id', 1).single(); if (s?.work_start) ws = s.work_start; if (s?.target_minutes) target = s.target_minutes; show('home');
 }
 // ---------- Home ----------
 async function loadToday() { const { data } = await sb.from('attendance').select('*').eq('user_id', me.id).eq('work_date', wibDate()).maybeSingle(); att = data; renderStatus(); }
 function renderStatus() {
   $('#st-d').textContent = new Date(wibDate()).toLocaleDateString('id-ID', { dateStyle: 'full', timeZone: 'UTC' });
-  if (!att) { $('#st-b').textContent = 'Belum Absen'; $('#st-t').textContent = 'Scan QR untuk absen masuk'; $('#hint').textContent = 'Arahkan kamera ke QR di layar kantor'; }
-  else if (!att.check_out) { $('#st-b').textContent = 'Sudah Masuk'; $('#st-t').textContent = `Masuk ${fmtTime(att.check_in)} • ${fmtDur(att.check_in, null)}`; $('#hint').textContent = 'Scan QR lagi saat Anda pulang'; }
-  else { $('#st-b').textContent = 'Selesai'; $('#st-t').textContent = `${fmtTime(att.check_in)} - ${fmtTime(att.check_out)} • ${fmtDur(att.check_in, att.check_out)}`; $('#hint').textContent = 'Absensi hari ini lengkap. Sampai jumpa besok!'; }
+  const x = $('#st-x'), seg = $('#mode'); x.textContent = ''; seg.classList.add('d-none');
+  if (!att) { $('#st-b').textContent = 'Belum Absen'; $('#st-t').textContent = 'Scan QR untuk absen masuk'; $('#hint').textContent = 'Arahkan kamera ke QR di layar kantor'; return; }
+  const m = calc(att);
+  if (att.check_out) { $('#st-b').textContent = 'Selesai'; $('#st-t').textContent = `${fmtTime(att.check_in)} - ${fmtTime(att.check_out)} • Kerja bersih ${HOURS.fmt(m.netMin)}`; x.textContent = `Total istirahat ${m.breakMin} menit`; $('#hint').textContent = 'Absensi hari ini lengkap. Sampai jumpa besok!'; return; }
+  if (m.onBreak) { const b = att.breaks.find((b) => !b.e); $('#st-b').textContent = 'Istirahat'; $('#st-t').textContent = `Keluar ${fmtTime(b.s)} • ${fmtDur(b.s, null).replace(' (berjalan)', '')}`; x.textContent = `Kerja bersih sejauh ini ${HOURS.fmt(m.netMin)}`; $('#hint').textContent = 'Scan QR untuk kembali masuk dari istirahat'; return; }
+  $('#st-b').textContent = 'Sedang Bekerja'; $('#st-t').textContent = `Masuk ${fmtTime(att.check_in)} • Kerja bersih ${HOURS.fmt(m.netMin)}`;
+  x.textContent = m.canOut ? `Sudah boleh pulang • istirahat ${m.breakMin} menit` : `Pulang paling cepat ${fmtTime(m.earliest)} • istirahat ${m.breakMin} menit` + (m.lateMin ? ` • utang telat ${m.lateMin} menit (lunasi dengan potong istirahat atau pulang lebih lambat)` : '');
+  seg.classList.remove('d-none'); $('#m-out').disabled = !m.canOut; $('#m-out').style.opacity = m.canOut ? 1 : .45; if (!m.canOut && mode === 'out') mode = 'break';
+  seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.m === mode));
+  $('#hint').textContent = mode === 'out' ? 'Scan QR untuk absen pulang' : 'Scan QR saat keluar istirahat';
 }
+$('#mode').onclick = (e) => { const b = e.target.closest('[data-m]'); if (!b || b.disabled) return; mode = b.dataset.m; renderStatus(); };
 function enterHome() {
   const h = new Date(Date.now() + 7 * 3600e3).getUTCHours();
   $('#gr').textContent = h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam'; $('#nm').textContent = me.full_name.split(' ')[0];
@@ -61,8 +69,10 @@ function result(k, t, p) { $('#res-i').innerHTML = ICON[k]; $('#res-t').textCont
 async function onCode(token) {
   busy = true; navigator.vibrate?.(60); result('load');
   try {
-    const p = await getPos(); const r = await api('/api/scan', 'POST', { token, lat: p.latitude, lng: p.longitude }); navigator.vibrate?.([80, 40, 80]); await loadToday();
-    result('ok', r.action === 'in' ? 'Absen Masuk Berhasil' : 'Absen Pulang Berhasil', r.action === 'in' ? `Pukul ${fmtTime(r.time)} • ${r.distance} m dari kantor` : `Pukul ${fmtTime(r.time)} • Total ${fmtDur(r.check_in, r.time)}`);
+    const p = await getPos(); const r = await api('/api/scan', 'POST', { token, lat: p.latitude, lng: p.longitude, action: mode }); navigator.vibrate?.([80, 40, 80]); mode = 'break'; await loadToday();
+    const T = { in: ['Absen Masuk Berhasil', `Pukul ${fmtTime(r.time)} • ${r.distance} m dari kantor`], break_start: ['Keluar Istirahat Tercatat', `Pukul ${fmtTime(r.time)} • Scan lagi saat kembali`],
+      break_end: ['Kembali dari Istirahat', `Istirahat ${r.break_min} menit • Total hari ini ${r.breakMin} menit`], out: ['Absen Pulang Berhasil', `Pukul ${fmtTime(r.time)} • Kerja bersih ${HOURS.fmt(r.netMin)} • Istirahat ${r.breakMin} menit`] }[r.action];
+    result('ok', T[0], T[1]);
   } catch (e) { result('bad', 'Absen Gagal', e.message); }
 }
 $('#res-ok').onclick = () => { $('#res').classList.remove('on'); busy = false; if (att?.check_out) { stopCam(); startCam(); } };
@@ -73,10 +83,11 @@ async function loadRiwayat() {
   const [y, m] = ym.split('-').map(Number), a = ym + '-01', b = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
   $('#ym').textContent = new Date(a).toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: 'UTC' });
   const data = (await sb.from('attendance').select('*').eq('user_id', me.id).gte('work_date', a).lte('work_date', b).order('work_date', { ascending: false })).data || [];
-  let mins = 0, lt = 0; data.forEach((r) => { if (r.check_out) mins += Math.round((new Date(r.check_out) - new Date(r.check_in)) / 6e4); if (isLate(r)) lt++; });
-  $('#sum').innerHTML = `<div><b>${data.length}</b><span>Hadir</span></div><div><b>${lt}</b><span>Terlambat</span></div><div><b>${Math.floor(mins / 60)}j</b><span>Total jam</span></div>`;
-  $('#rlist').innerHTML = data.map((r) => `<div class="sheet"><div class="row2"><b>${fd(r.work_date)}</b><span class="badge-table ${isLate(r) ? 'pending' : 'success'}">${isLate(r) ? 'Terlambat' : 'Tepat Waktu'}</span></div>
-   <div class="mut mt-1">Masuk ${fmtTime(r.check_in)} • Pulang ${fmtTime(r.check_out)} • ${r.check_out ? fmtDur(r.check_in, r.check_out) : '-'}</div></div>`).join('') || '<div class="sheet mut text-center">Belum ada data bulan ini</div>';
+  let mins = 0, lt = 0; const rs = data.map((r) => ({ r, m: calc(r) })); rs.forEach(({ r, m }) => { if (r.check_out) mins += m.netMin; if (m.lateMin) lt++; });
+  $('#sum').innerHTML = `<div><b>${data.length}</b><span>Hadir</span></div><div><b>${lt}</b><span>Hari telat</span></div><div><b>${Math.floor(mins / 60)}j</b><span>Jam bersih</span></div>`;
+  $('#rlist').innerHTML = rs.map(({ r, m }) => { const today = r.work_date === wibDate(), st = r.check_out ? ['success', 'Selesai'] : today ? ['pending', m.onBreak ? 'Istirahat' : 'Bekerja'] : ['failed', 'Belum pulang'];
+   return `<div class="sheet"><div class="row2"><b>${fd(r.work_date)}</b><span class="badge-table ${st[0]}">${st[1]}</span></div>
+   <div class="mut mt-1">Masuk ${fmtTime(r.check_in)} • Pulang ${fmtTime(r.check_out)}</div><div class="mut">Istirahat ${m.breakMin}m • Kerja bersih ${HOURS.fmt(m.netMin)}${m.lateMin ? ` • Telat ${m.lateMin}m` : ''}</div></div>`; }).join('') || '<div class="sheet mut text-center">Belum ada data bulan ini</div>';
 }
 const shift = (n) => { const [y, m] = ym.split('-').map(Number); ym = new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7); loadRiwayat(); };
 $('#pm').onclick = () => shift(-1); $('#nm2').onclick = () => shift(1);
