@@ -1,5 +1,5 @@
 // HADIRIN app karyawan. Memakai helper dari core.js ($, sb, api, toast, fmtTime, fmtDur, wibDate, esc)
-let me, att, ws = '08:00:00', target = 420, mode = 'break', stream, track, scanning = false, busy = false, watch = null, lastBad = '', ym = wibDate().slice(0, 7), jenis = 'izin', dp;
+let me, att, ws = '08:00:00', target = 420, mode = 'break', stream, track, scanning = false, busy = false, manual = false, onHome = false, watch = null, lastBad = '', ym = wibDate().slice(0, 7), jenis = 'izin', dp;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const fd = (d) => new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const calc = (r) => HOURS.summarize(r, Date.now(), target, ws);
@@ -39,17 +39,46 @@ function renderStatus() {
 }
 $('#mode').onclick = (e) => { const b = e.target.closest('[data-m]'); if (!b || b.disabled) return; mode = b.dataset.m; renderStatus(); };
 function enterHome() {
+  onHome = true; manual = false;
   const h = new Date(Date.now() + 7 * 3600e3).getUTCHours();
   $('#gr').textContent = h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam'; $('#nm').textContent = me.full_name.split(' ')[0];
   startGps(); loadToday().then(startCam);
 }
-function leaveHome() { stopCam(); if (watch != null) { navigator.geolocation.clearWatch(watch); watch = null; } }
+function leaveHome() { onHome = false; stopCam(); if (watch != null) { navigator.geolocation.clearWatch(watch); watch = null; } }
 const setChip = (ok, t) => { $('#chip').className = 'chip' + (ok ? ' ok' : ''); $('#chip span').textContent = t; };
 function startGps() { if (watch != null) return; if (!navigator.geolocation) return setChip(false, 'GPS tidak didukung');
   watch = navigator.geolocation.watchPosition((p) => setChip(true, `Lokasi siap (±${Math.round(p.coords.accuracy)} m)`), () => setChip(false, 'Aktifkan izin lokasi'), { enableHighAccuracy: true, maximumAge: 10000 }); }
 const getPos = () => new Promise((ok, no) => navigator.geolocation.getCurrentPosition((p) => ok(p.coords), () => no(new Error('Lokasi tidak terbaca. Aktifkan GPS dan izinkan akses lokasi.')), { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }));
+// Kamera otomatis: tutup setelah absen masuk, buka lagi menjelang jam istirahat
+const BREAK_TIME = ['11:30', '14:30'], BREAK_LEAD = 10, BREAK_WIN = 40; // buka 10 mnt sebelum, aktif 40 mnt
+const hm = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+const wibMin = () => { const d = new Date(Date.now() + 7 * 3600e3); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
+function camWanted() {
+  if (!att) return true;
+  if (att.check_out) return false;
+  const m = calc(att); if (m.onBreak || m.canOut) return true;
+  const n = wibMin();
+  return BREAK_TIME.some((t) => {
+    const a = hm(t) - BREAK_LEAD; if (n < a || n >= a + BREAK_WIN) return false;
+    const from = new Date(`${wibDate()}T${String(Math.floor(a / 60)).padStart(2, '0')}:${String(a % 60).padStart(2, '0')}:00+07:00`);
+    return !(att.breaks || []).some((b) => new Date(b.s) >= from);
+  });
+}
+function showWork() {
+  $('.pulse i').className = 'bi bi-briefcase-fill';
+  $('#cam-t').textContent = 'Selamat bekerja, semangat ya!';
+  $('#cam-p').textContent = `Kamera terbuka otomatis menjelang istirahat (${BREAK_TIME.join(' & ')}).`;
+  $('#btn-cam').classList.remove('d-none');
+}
+function syncCam() {
+  if (!onHome || !att || att.check_out || busy) return;
+  if (camWanted()) { if (!stream) startCam(); } else if (stream && !manual) { stopCam(); showWork(); }
+}
+setInterval(syncCam, 20000);
 async function startCam() {
   if (att?.check_out) { $('#cam-t').textContent = 'Absensi Hari Ini Selesai'; $('#cam-p').textContent = 'Terima kasih, sampai jumpa besok!'; return $('#btn-cam').classList.add('d-none'); }
+  if (!manual && att && !camWanted()) { stopCam(); return showWork(); }
+  $('.pulse i').className = 'bi bi-qr-code-scan';
   if (stream) return; $('#cam-t').textContent = 'Silakan Scan QR untuk Kehadiran'; $('#cam-p').textContent = 'Menyiapkan kamera...';
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); const v = $('#vid'); v.srcObject = stream; await v.play();
@@ -78,8 +107,8 @@ async function onCode(token) {
     result('ok', T[0], T[1]);
   } catch (e) { result('bad', 'Absen Gagal', e.message); }
 }
-$('#res-ok').onclick = () => { $('#res').classList.remove('on'); busy = false; if (att?.check_out) { stopCam(); startCam(); } };
-$('#btn-cam').onclick = startCam;
+$('#res-ok').onclick = () => { $('#res').classList.remove('on'); busy = false; manual = false; if (att?.check_out) { stopCam(); startCam(); } else syncCam(); };
+$('#btn-cam').onclick = () => { manual = true; startCam(); };
 $('#torch').onclick = async (e) => { const on = !e.currentTarget.classList.contains('on'); try { await track.applyConstraints({ advanced: [{ torch: on }] }); e.currentTarget.classList.toggle('on', on); } catch {} };
 // ---------- Riwayat ----------
 async function loadRiwayat() {
