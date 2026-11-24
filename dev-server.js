@@ -26,6 +26,6 @@ http.createServer(async (req, res) => {
   }
   if (p === '/') p = '/dashboard';
   let f = path.join(root, p); if (!path.extname(f)) f += '.html';
-  if (!f.startsWith(root) || /[\\/](\.env|server\.js|scripts|supabase)/.test(f.slice(root.length)) || !fs.existsSync(f)) { res.statusCode = 404; return res.end('Not found'); }
+  if (!f.startsWith(root) || /[\\/](\.env|dev-server\.js|server\.js|scripts|supabase)/.test(f.slice(root.length)) || !fs.existsSync(f)) { res.statusCode = 404; return res.end('Not found'); }
   res.setHeader('Content-Type', MIME[path.extname(f)] || 'application/octet-stream'); fs.createReadStream(f).pipe(res);
 }).listen(PORT, () => console.log(`HADIRIN dev: http://localhost:${PORT}  (login: ${process.env.DEFAULT_ADMIN_EMAIL || '-'})`));
