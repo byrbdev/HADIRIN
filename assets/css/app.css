@@ -55,3 +55,6 @@ body{background:var(--bg-canvas,#F4F6F5);-webkit-tap-highlight-color:transparent
 .ck.ok{stroke:#22C55E}.ck.bad{stroke:#EF4444}@keyframes dr{to{stroke-dashoffset:0}}
 .spin{width:54px;height:54px;border:5px solid #E9EEEB;border-top-color:var(--brand-forest-medium);border-radius:50%;animation:rot .8s linear infinite;margin:0 auto}@keyframes rot{to{transform:rotate(360deg)}}
 .av{width:84px;height:84px;border-radius:50%;background:var(--brand-lime);color:var(--brand-forest-dark);display:grid;place-items:center;font-size:2rem;font-weight:800;margin:0 auto .75rem}
+
+.ov-ic{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;font-size:2.8rem;animation:pop .6s cubic-bezier(.2,1.4,.4,1) both}
+.ov-ic.rest{background:#FEF3C7;color:#D97706}.ov-ic.work{background:#DCFCE7;color:var(--brand-forest-medium)}

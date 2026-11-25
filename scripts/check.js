@@ -14,6 +14,7 @@ console.log('2. Database (service role)');
 const { data: ps, error: pe } = await svc.from('profiles').select('full_name,role,active');
 if (pe) bad('Tabel profiles tidak terbaca: ' + pe.message); else { ok(`profiles berisi ${ps.length} baris`); ps.forEach((p) => console.log(`         - ${p.full_name} (${p.role}, ${p.active ? 'aktif' : 'nonaktif'})`)); if (!ps.some((p) => p.role === 'admin' && p.active)) bad('Belum ada admin aktif di profiles -> jalankan npm run seed'); }
 const { data: st, error: se } = await svc.from('settings').select('radius_m').eq('id', 1).single(); se ? bad('Tabel settings: ' + se.message) : ok('settings OK (radius ' + st.radius_m + ' m)');
+const { error: be } = await svc.from('settings').select('break_slots').eq('id', 1).single(); be ? bad('Kolom break_slots belum ada -> jalankan supabase/migration-jam-istirahat.sql (pakai jam istirahat bawaan sampai itu)') : ok('jam istirahat (break_slots) OK');
 console.log('3. Login admin default (seperti browser)');
 const { data: l, error: le } = await anon.auth.signInWithPassword({ email: E.DEFAULT_ADMIN_EMAIL, password: E.DEFAULT_ADMIN_PASSWORD });
 if (le) bad('Login gagal: ' + le.message); else {

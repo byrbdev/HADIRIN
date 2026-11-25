@@ -20,7 +20,8 @@ create table settings(
   id int primary key default 1 check (id=1),
   office_lat float8 default -6.9175, office_lng float8 default 107.6191, radius_m int default 100,
   work_start time default '08:00', work_end time default '17:00',
-  target_minutes int not null default 420);  -- kerja bersih minimal (menit) untuk boleh pulang
+  target_minutes int not null default 420,   -- kerja bersih minimal (menit) untuk boleh pulang
+  break_slots jsonb not null default '[{"out":"11:40","back":"12:40"},{"out":"14:40","back":"15:40"}]'::jsonb);  -- jam scan istirahat (WIB)
 insert into settings default values;
 
 create function is_admin() returns boolean language sql security definer stable as

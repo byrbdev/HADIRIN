@@ -19,6 +19,10 @@ Untuk produksi: ganti password default / hapus akun contoh, dan jangan set `HADI
 ## Aturan jam kerja (kerja bersih)
 - Jam masuk bebas; sistem hanya mencatat scan masuk. Istirahat (dzuhur, ashar, dst.) dicatat lewat scan keluar/kembali
   (di app: pilih **Istirahat** lalu scan; scan berikutnya = kembali). Durasi = selisih scan; tidak ada batas minimal.
+- **Jendela scan istirahat (dicek di server, WIB):** keluar istirahat ke-1 dibuka 11:40, ke-2 dibuka 14:40; scan masuk setelah
+  istirahat ke-1 dibuka 12:40, ke-2 dibuka 15:40. Tiap istirahat hanya sekali. Angka ini bawaan; admin mengubahnya di **Setting > Jam Istirahat**
+  (disimpan di `settings.break_slots`; **database lama:** jalankan `supabase/migration-jam-istirahat.sql` sekali). Bawaan ada di `BREAK_SLOTS` (`api/_hours.js` + `assets/js/hours.js`).
+  Di app, scan istirahat/masuk yang berhasil menampilkan overlay "Selamat Istirahat" / "Selamat bekerja!".
 - Kerja bersih = (sekarang atau jam pulang − jam masuk) − total istirahat. Pulang hanya boleh bila kerja bersih ≥ `target_minutes`
   (default 420 = 7 jam) dan tidak sedang istirahat. Jam pulang paling cepat = jam masuk + target + total istirahat.
 - Telat bukan pelanggaran; hanya "utang menit" (informasi) yang lunas dengan memotong istirahat atau pulang lebih lambat.
