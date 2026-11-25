@@ -17,15 +17,21 @@ const HOURS = (() => {
       lateMin: Math.max(0, inMin - (h * 60 + m)) };
   }
   // Jendela istirahat (WIB) — salinan server: api/_hours.js
-  const BREAK_SLOTS = [{ out: '11:40', back: '12:40' }, { out: '14:40', back: '15:40' }];
+  const BREAK_SLOTS = [{ out: '11:40', back: '12:40', due: '13:00', grace: 15 }, { out: '14:40', back: '15:40', due: '16:00', grace: 15 }];
   const hm = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
   const wibMin = (t) => { const d = new Date(new Date(t).getTime() + 7 * 3600e3); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
   const TM = /^([01]\d|2[0-3]):[0-5]\d$/;
-  // Pastikan pengaturan valid (2 istirahat; keluar < masuk; urutan naik). Jika tidak valid / belum ada, pakai bawaan.
+  // Pastikan pengaturan valid (2 istirahat; urutan waktu naik). Jika tidak valid / belum ada, pakai bawaan.
+  // due = jam masuk kembali yang dianggap tepat waktu; grace = toleransi telat (menit). Data lama tanpa due/grace tetap diterima.
   const normSlots = (v) => {
     if (!Array.isArray(v) || v.length !== 2 || !v.every((x) => x && TM.test(x.out) && TM.test(x.back))) return BREAK_SLOTS;
-    const t = v.flatMap((x) => [hm(x.out), hm(x.back)]);
-    return t.every((n, i) => i === 0 || (i % 2 ? n > t[i - 1] : n >= t[i - 1])) ? v.map((x) => ({ out: x.out, back: x.back })) : BREAK_SLOTS;
+    const S = v.map((x, i) => {
+      const okDue = (d) => TM.test(d) && hm(d) >= hm(x.back) && (i === 1 || hm(d) <= hm(v[1].out));
+      const due = okDue(x.due) ? x.due : okDue(BREAK_SLOTS[i].due) && hm(BREAK_SLOTS[i].due) - hm(x.back) <= 30 ? BREAK_SLOTS[i].due : x.back;   // data lama tanpa due: pakai bawaan hanya jika dekat dengan jam scan masuk
+      return { out: x.out, back: x.back, due, grace: Number.isInteger(x.grace) && x.grace >= 0 && x.grace <= 120 ? x.grace : BREAK_SLOTS[i].grace };
+    });
+    const [a, b] = S, ok = hm(a.out) < hm(a.back) && hm(a.back) <= hm(a.due) && hm(a.due) <= hm(b.out) && hm(b.out) < hm(b.back) && hm(b.back) <= hm(b.due);
+    return ok ? S : BREAK_SLOTS;
   };
   const slotOf = (t, S) => { const n = wibMin(t); let k = -1; S.forEach((s, i) => { if (hm(s.out) <= n) k = i; }); return k; };
   function breakState(a, now = Date.now(), slots = BREAK_SLOTS) {
@@ -40,5 +46,15 @@ const HOURS = (() => {
     return { onBreak: false, slot: k, canStart, canEnd: false, backAt: canStart ? S[k].back : null, nextAt,
       msg: canStart ? '' : nextAt ? `Scan keluar istirahat dibuka pukul ${nextAt}.` : 'Jatah istirahat hari ini sudah terpakai.' };
   }
-  return { summarize, fmt, breakState, normSlots, BREAK_SLOTS };
+  // Waktu kembali dari istirahat yang DICATAT. Jika scan masuk telat tapi masih dalam toleransi (due .. due+grace),
+  // dicatat tepat jam due (mis. scan 13:07, due 13:00, toleransi 15 -> dicatat 13:00). Scan lebih awal / lewat toleransi = waktu asli.
+  function breakEnd(open, now = Date.now(), slots = BREAK_SLOTS) {
+    const S = normSlots(slots), k = slotOf(open.s, S);
+    if (k < 0 || now - new Date(open.s).getTime() > 12 * 36e5) return { at: now, snapped: false };
+    const late = wibMin(now) - hm(S[k].due);
+    if (late < 0 || late > S[k].grace) return { at: now, snapped: false };
+    const w = new Date(now + 7 * 3600e3), dayStart = Date.UTC(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate()) - 7 * 3600e3;
+    return { at: dayStart + hm(S[k].due) * MIN, snapped: late > 0 };
+  }
+  return { summarize, fmt, breakState, breakEnd, normSlots, BREAK_SLOTS };
 })();

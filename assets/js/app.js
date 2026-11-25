@@ -1,5 +1,5 @@
 // HADIRIN app karyawan. Memakai helper dari core.js ($, sb, api, toast, fmtTime, fmtDur, wibDate, esc)
-let me, att, ws = '08:00:00', target = 480, slots = null, mode = 'break', prevOut = false, stream, track, scanning = false, busy = false, manual = false, onHome = false, watch = null, lastBad = '', ym = wibDate().slice(0, 7), jenis = 'izin', dp;
+let me, att, ws = '08:00:00', target = 480, slots = null, mode = 'break', prevOut = false, stream, track, scanning = false, busy = false, manual = false, onHome = false, watch = null, ready = false, today = '', opening = false, camGen = 0, lastPos = null, entering = null, refreshing = null, retryT, lastMk = 0, lastBad = '', ym = wibDate().slice(0, 7), jenis = 'izin', dp;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const fd = (d) => new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const calc = (r) => HOURS.summarize(r, Date.now(), target, ws), brk = (r) => HOURS.breakState(r, Date.now(), slots);
@@ -11,20 +11,27 @@ function show(v) {
   document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.v === v)); scrollTo(0, 0);
   ({ home: enterHome, riwayat: loadRiwayat, izin: loadIzin, profil: loadProfil }[v] || (() => {}))();
 }
-async function enter() {
-  const { data: { session } } = await sb.auth.getSession(); if (!session) return show('login');
-  const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
-  if (p && p.role === 'admin' && p.active) return (location.href = '/dashboard');
-  if (!p || p.role !== 'employee' || !p.active) { await sb.auth.signOut(); $('#err').textContent = p?.role === 'admin' ? 'Akun admin: gunakan dashboard admin.' : 'Akun tidak aktif atau tidak ditemukan.'; return show('login'); }
-  me = { ...p, email: session.user.email };
-  show('home');
+function resetUi() { me = att = null; ready = false; mode = 'break'; prevOut = false; manual = false; slots = null; today = ''; show('login'); }
+function enter() {   // dijaga: splash + login tidak boleh menjalankan enter() dua kali bersamaan
+  return entering || (entering = (async () => {
+    const { data: { session } } = await sb.auth.getSession(); if (!session) return show('login');
+    const { data: p, error } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+    if (error && !p && error.code !== 'PGRST116') { $('#err').textContent = 'Koneksi bermasalah. Coba lagi.'; return show('login'); }   // gangguan jaringan bukan alasan untuk logout
+    if (p && p.role === 'admin' && p.active) return (location.href = '/dashboard');
+    if (!p || p.role !== 'employee' || !p.active) { await sb.auth.signOut(); $('#err').textContent = p?.role === 'admin' ? 'Akun admin: gunakan dashboard admin.' : 'Akun tidak aktif atau tidak ditemukan.'; return show('login'); }
+    me = { ...p, email: session.user.email };
+    show('home');
+  })().finally(() => (entering = null)));
 }
 async function loadSettings() {   // dibaca tiap membuka halaman Scan, supaya perubahan dari Setting admin langsung berlaku
   const { data: s } = await sb.from('settings').select('*').eq('id', 1).single();
   if (s?.work_start) ws = s.work_start; if (s?.target_minutes) target = s.target_minutes; slots = s?.break_slots || null;
 }
 // ---------- Home ----------
-async function loadToday() { const { data } = await sb.from('attendance').select('*').eq('user_id', me.id).eq('work_date', wibDate()).maybeSingle(); att = data; renderStatus(); }
+async function loadToday() {   // gagal baca = kamera TETAP tertutup (dulu dianggap 'belum absen' sehingga kamera terbuka sendiri)
+  const d = wibDate(), { data, error } = await sb.from('attendance').select('*').eq('user_id', me.id).eq('work_date', d).maybeSingle();
+  if (error) throw error; att = data; today = d; ready = true; renderStatus();
+}
 function renderStatus() {
   $('#st-d').textContent = new Date(wibDate()).toLocaleDateString('id-ID', { dateStyle: 'full', timeZone: 'UTC' });
   const x = $('#st-x'), seg = $('#mode'); x.textContent = ''; seg.classList.add('d-none'); if (!att || att.check_out || calc(att).onBreak) prevOut = false;
@@ -44,16 +51,24 @@ function renderStatus() {
 }
 $('#mode').onclick = (e) => { const b = e.target.closest('[data-m]'); if (!b || b.disabled) return; mode = b.dataset.m; renderStatus(); };
 function enterHome() {
-  onHome = true; manual = false;
+  onHome = true; manual = false; ready = false; stopCam();   // kamera tertutup sampai status absen hari ini benar-benar terbaca
   const h = new Date(Date.now() + 7 * 3600e3).getUTCHours();
   $('#gr').textContent = h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam'; $('#nm').textContent = me.full_name.split(' ')[0];
-  startGps(); Promise.all([loadSettings().catch(() => {}), loadToday()]).then(startCam);
+  setIcon('bi-hourglass-split'); setIdle('Memuat status absen...'); startGps(); refresh();
 }
-function leaveHome() { onHome = false; stopCam(); if (watch != null) { navigator.geolocation.clearWatch(watch); watch = null; } }
+function leaveHome() { onHome = false; clearTimeout(retryT); stopCam(); if (watch != null) { navigator.geolocation.clearWatch(watch); watch = null; } }
+// Baca ulang setting + absensi hari ini, baru kamera boleh diputuskan buka/tutup (satu proses sekaligus)
+function refresh() {
+  return refreshing || (refreshing = (async () => {
+    try { await Promise.all([loadSettings().catch(() => {}), loadToday()]); }
+    catch { ready = false; stopCam(); setIcon('bi-wifi-off'); setIdle('Gagal memuat status', 'Periksa koneksi. Mencoba lagi...'); clearTimeout(retryT); retryT = setTimeout(() => onHome && refresh(), 3000); return; }
+    if (onHome) startCam();
+  })().finally(() => (refreshing = null)));
+}
 const setChip = (ok, t) => { $('#chip').className = 'chip' + (ok ? ' ok' : ''); $('#chip span').textContent = t; };
 function startGps() { if (watch != null) return; if (!navigator.geolocation) return setChip(false, 'GPS tidak didukung');
-  watch = navigator.geolocation.watchPosition((p) => setChip(true, `Lokasi siap (±${Math.round(p.coords.accuracy)} m)`), () => setChip(false, 'Aktifkan izin lokasi'), { enableHighAccuracy: true, maximumAge: 10000 }); }
-const getPos = () => new Promise((ok, no) => navigator.geolocation.getCurrentPosition((p) => ok(p.coords), () => no(new Error('Lokasi tidak terbaca. Aktifkan GPS dan izinkan akses lokasi.')), { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }));
+  watch = navigator.geolocation.watchPosition((p) => { lastPos = { c: p.coords, t: Date.now() }; setChip(true, `Lokasi siap (±${Math.round(p.coords.accuracy)} m)`); }, () => setChip(false, 'Aktifkan izin lokasi'), { enableHighAccuracy: true, maximumAge: 10000 }); }
+const getPos = () => lastPos && Date.now() - lastPos.t < 20000 ? Promise.resolve(lastPos.c) : new Promise((ok, no) => navigator.geolocation.getCurrentPosition((p) => ok(p.coords), () => no(new Error('Lokasi tidak terbaca. Aktifkan GPS dan izinkan akses lokasi.')), { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }));
 // Kamera otomatis: tutup setelah absen masuk; buka tepat saat jam keluar istirahat dibuka selama BREAK_WIN menit
 // (lewat itu tetap bisa lewat ketuk 2x). Saat istirahat, kamera baru dibuka ketika scan masuk dibuka.
 // Jam diatur admin di halaman Setting (settings.break_slots; bawaan HOURS.BREAK_SLOTS) dan dicek ulang di server (api/scan.js).
@@ -75,30 +90,50 @@ function showIdle() {
   else { setIcon('bi-briefcase-fill'); setIdle('Selamat bekerja!'); }
 }
 function syncCam() {
-  if (!onHome || !att || att.check_out || busy) return;
+  if (!onHome || document.hidden || busy) return;
+  if (ready && today !== wibDate()) return void refresh();   // ganti hari saat aplikasi terbuka terus
+  if (!ready || att?.check_out) return;
   if (camWanted()) { if (!stream) startCam(); } else if (stream && !manual) { stopCam(); showIdle(); }
 }
 setInterval(syncCam, 20000);
 async function startCam() {
-  if (att?.check_out) { setIcon('bi-check2-circle'); return setIdle('Absensi Hari Ini Selesai', 'Terima kasih, sampai jumpa besok!'); }
+  if (!onHome || !ready || document.hidden) return;
+  if (att?.check_out) { stopCam(); setIcon('bi-check2-circle'); return setIdle('Absensi Hari Ini Selesai', 'Terima kasih, sampai jumpa besok!'); }
   if (!manual && att && !camWanted()) { stopCam(); return showIdle(); }
   setIcon('bi-qr-code-scan');
-  if (stream) return; setIdle('Silakan Scan QR untuk Kehadiran', 'Menyiapkan kamera...');
+  if (stream || opening) return;   // cegah dua kamera terbuka bersamaan (stream bocor = kamera menyala terus)
+  const gen = ++camGen; opening = true; setIdle('Silakan Scan QR untuk Kehadiran', 'Menyiapkan kamera...');
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); const v = $('#vid'); v.srcObject = stream; await v.play();
-    scanning = true; $('#scan').classList.add('live'); track = stream.getVideoTracks()[0];
+    const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    if (gen !== camGen) return st.getTracks().forEach((t) => t.stop());   // dibatalkan saat menunggu izin / kamera
+    stream = st; const v = $('#vid'); v.srcObject = st; await v.play();
+    if (gen !== camGen) return;
+    scanning = true; $('#scan').classList.add('live'); track = st.getVideoTracks()[0];
     if (track.getCapabilities?.().torch) $('#torch').classList.add('can'); loop();
-  } catch { setIdle('Kamera belum aktif', 'Izinkan akses kamera di browser, lalu ketuk 2x layar ini.'); }
+  } catch { if (gen === camGen) { stopCam(); setIdle('Kamera belum aktif', 'Izinkan akses kamera di browser, lalu ketuk 2x layar ini.'); } }
+  finally { if (gen === camGen) opening = false; }
 }
-function stopCam() { scanning = false; stream?.getTracks().forEach((t) => t.stop()); stream = null; $('#scan').classList.remove('live'); }
-function loop() {
+function stopCam() {
+  camGen++; opening = false; scanning = false; stream?.getTracks().forEach((t) => t.stop()); stream = track = null;
+  const v = $('#vid'); v.srcObject = null; $('#scan').classList.remove('live'); $('#torch').classList.remove('can', 'on');
+}
+// Pemindai: BarcodeDetector bawaan browser (cepat, hemat baterai) bila ada; jsQR sebagai cadangan
+let BD = null; try { if ('BarcodeDetector' in window) BD = new BarcodeDetector({ formats: ['qr_code'] }); } catch {}
+const cv = $('#cv'), cx = cv.getContext('2d', { willReadFrequently: true });
+async function readQR(v) {
+  if (BD) { try { return (await BD.detect(v))[0]?.rawValue || ''; } catch { BD = null; } }
+  const k = Math.min(1, 480 / v.videoWidth), w = Math.round(v.videoWidth * k), h = Math.round(v.videoHeight * k);
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }   // jangan ubah ukuran tiap frame (mereset canvas)
+  cx.drawImage(v, 0, 0, w, h); return jsQR(cx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'dontInvert' })?.data || '';
+}
+async function loop() {
   if (!scanning) return; const v = $('#vid');
-  if (v.readyState >= 2 && !busy) {
-    const s = Math.min(1, 520 / v.videoWidth), c = $('#cv'), x = c.getContext('2d', { willReadFrequently: true }); c.width = v.videoWidth * s; c.height = v.videoHeight * s; x.drawImage(v, 0, 0, c.width, c.height);
-    const q = jsQR(x.getImageData(0, 0, c.width, c.height).data, c.width, c.height, { inversionAttempts: 'dontInvert' });
-    if (q?.data.startsWith('HDR.')) onCode(q.data); else if (q && q.data !== lastBad) { lastBad = q.data; toast('QR bukan milik HADIRIN', false); setTimeout(() => (lastBad = ''), 3000); }
+  if (v.readyState >= 2 && v.videoWidth && !busy && !document.hidden) {
+    const d = await readQR(v).catch(() => '');
+    if (!scanning) return;
+    if (d.startsWith('HDR.')) onCode(d); else if (d && d !== lastBad) { lastBad = d; toast('QR bukan milik HADIRIN', false); setTimeout(() => (lastBad = ''), 3000); }
   }
-  setTimeout(loop, 130);
+  setTimeout(loop, BD ? 120 : 170);
 }
 const ICON = { ok: '<svg class="ck ok" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46"/><path d="M30 52l14 14 27-30"/></svg>', bad: '<svg class="ck bad" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46"/><path d="M35 35l30 30M65 35L35 65"/></svg>', load: '<div class="spin"></div>',
   rest: '<div class="ov-ic rest"><i class="bi bi-cup-hot-fill"></i></div>', work: '<div class="ov-ic work"><i class="bi bi-briefcase-fill"></i></div>' };
@@ -107,20 +142,20 @@ function result(k, t, p) { clearTimeout(resTimer); $('#res-i').innerHTML = ICON[
 async function onCode(token) {
   busy = true; navigator.vibrate?.(60); result('load');
   try {
-    const p = await getPos(); const r = await api('/api/scan', 'POST', { token, lat: p.latitude, lng: p.longitude, action: mode }); navigator.vibrate?.([80, 40, 80]); mode = 'break'; await loadToday();
+    const p = await getPos(); const r = await api('/api/scan', 'POST', { token, lat: p.latitude, lng: p.longitude, action: mode }); navigator.vibrate?.([80, 40, 80]); mode = 'break'; manual = false; await loadToday(); if (!camWanted()) { stopCam(); showIdle(); }
     const T = { in: ['Absen Masuk Berhasil', `Pukul ${fmtTime(r.time)} • ${r.distance} m dari kantor`], break_start: ['Selamat Istirahat', `Keluar pukul ${fmtTime(r.time)}` + (r.back_at ? ` • Scan masuk dibuka pukul ${r.back_at}` : ' • Scan lagi saat kembali')],
-      break_end: ['Selamat bekerja!', `Kembali pukul ${fmtTime(r.time)} • Istirahat ${r.break_min} menit`], out: ['Absen Pulang Berhasil', `Pukul ${fmtTime(r.time)} • Kerja bersih ${HOURS.fmt(r.netMin)} • Istirahat ${r.breakMin} menit`] }[r.action];
+      break_end: ['Selamat bekerja!', `Kembali pukul ${fmtTime(r.time)} • Istirahat ${r.break_min} menit` + (r.snapped ? ` • Scan ${fmtTime(r.real_time)}, dicatat tepat waktu` : '')], out: ['Absen Pulang Berhasil', `Pukul ${fmtTime(r.time)} • Kerja bersih ${HOURS.fmt(r.netMin)} • Istirahat ${r.breakMin} menit`] }[r.action];
     const k = { break_start: 'rest', break_end: 'work' }[r.action] || 'ok'; result(k, T[0], T[1]);
     if (k !== 'ok') resTimer = setTimeout(() => $('#res-ok').click(), 3500);   // overlay istirahat / bekerja menutup sendiri
   } catch (e) { result('bad', 'Absen Gagal', e.message); }
 }
-$('#res-ok').onclick = () => { clearTimeout(resTimer); $('#res').classList.remove('on'); busy = false; manual = false; if (att?.check_out) { stopCam(); startCam(); } else syncCam(); };
+$('#res-ok').onclick = () => { clearTimeout(resTimer); $('#res').classList.remove('on'); busy = false; manual = false; if (att?.check_out) startCam(); else syncCam(); };
 // Ketuk 2x pada area scan = buka kamera manual (kondisi urgent)
 let lastTap = 0, lastX = 0, lastY = 0;
 $('#scan').addEventListener('pointerup', (e) => {
   const now = Date.now(), dbl = now - lastTap < 350 && Math.hypot(e.clientX - lastX, e.clientY - lastY) < 40;
   lastTap = dbl ? 0 : now; lastX = e.clientX; lastY = e.clientY;
-  if (!dbl || stream || busy || att?.check_out) return;
+  if (!dbl || stream || opening || busy || !ready || att?.check_out) return;
   manual = true; navigator.vibrate?.(30); startCam();
 });
 $('#torch').onclick = async (e) => { const on = !e.currentTarget.classList.contains('on'); try { await track.applyConstraints({ advanced: [{ torch: on }] }); e.currentTarget.classList.toggle('on', on); } catch {} };
@@ -162,12 +197,16 @@ $('#fp').onsubmit = async (e) => { e.preventDefault(); const { error } = await s
 addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); dp = e; });
 if (/; wv\)|Capacitor/.test(navigator.userAgent) || window.Capacitor?.isNativePlatform?.()) $('#btn-install').classList.add('d-none');
 $('#btn-install').onclick = () => dp ? dp.prompt() : toast('Buka menu browser lalu pilih "Tambahkan ke layar utama".');
-$('#btn-out').onclick = async () => { await sb.auth.signOut(); me = att = null; show('login'); };
+$('#btn-out').onclick = async () => { await sb.auth.signOut(); resetUi(); };
+sb.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_OUT' && me) resetUi(); });   // sesi habis / logout dari tab lain
 // ---------- Umum ----------
-$('#fl').onsubmit = async (e) => { e.preventDefault(); $('#err').textContent = ''; const { error } = await sb.auth.signInWithPassword({ email: $('#em').value, password: $('#pw').value }); if (error) return ($('#err').textContent = 'Email atau password salah'); enter(); };
+$('#fl').onsubmit = async (e) => { e.preventDefault(); $('#err').textContent = ''; const btn = e.submitter; btn.disabled = true; try { const { error } = await sb.auth.signInWithPassword({ email: $('#em').value, password: $('#pw').value }); if (error) return ($('#err').textContent = error.status === 400 ? 'Email atau password salah' : 'Koneksi bermasalah. Coba lagi.'); $('#pw').value = ''; await enter(); } finally { btn.disabled = false; } };
 document.querySelectorAll('[data-v]').forEach((b) => (b.onclick = () => show(b.dataset.v)));
 document.querySelectorAll('[data-go]').forEach((b) => (b.onclick = () => show(b.dataset.go)));
-document.addEventListener('visibilitychange', () => { if (document.hidden) stopCam(); else if ($('#v-home').classList.contains('on')) startCam(); });
-setInterval(() => { $('#clk').textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta' }).replace(/\./g, ':'); if (att && !att.check_out && $('#v-home').classList.contains('on')) renderStatus(); }, 1000);
+// Layar mati / pindah aplikasi: kamera pasti mati. Saat kembali, status dibaca ulang dari server dulu (bukan langsung membuka kamera)
+document.addEventListener('visibilitychange', () => { if (document.hidden) { stopCam(); manual = false; } else if (onHome) refresh(); });
+addEventListener('pagehide', () => stopCam());
+addEventListener('pageshow', (e) => { if (e.persisted && onHome) { stopCam(); ready = false; refresh(); } });
+setInterval(() => { $('#clk').textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta' }).replace(/\./g, ':'); const mk = Math.floor(Date.now() / 6e4); if (mk !== lastMk) { lastMk = mk; if (ready && att && !att.check_out && onHome) renderStatus(); } }, 1000);   // status hanya digambar ulang tiap menit (dulu tiap detik)
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
-(async () => { await sleep(1800); $('#splash').classList.add('hide'); enter(); })();
+(async () => { const t = sleep(600); try { await enter(); } finally { await t; $('#splash').classList.add('hide'); } })();   // splash tampil minimal 0,6 dtk, bukan 1,8 dtk tetap

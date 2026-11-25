@@ -22,6 +22,9 @@ Untuk produksi: ganti password default / hapus akun contoh, dan jangan set `HADI
 - **Jendela scan istirahat (dicek di server, WIB):** keluar istirahat ke-1 dibuka 11:40, ke-2 dibuka 14:40; scan masuk setelah
   istirahat ke-1 dibuka 12:40, ke-2 dibuka 15:40. Tiap istirahat hanya sekali. Angka ini bawaan; admin mengubahnya di **Setting > Jam Istirahat**
   (disimpan di `settings.break_slots`; **database lama:** jalankan `supabase/migration-jam-istirahat.sql` sekali). Bawaan ada di `BREAK_SLOTS` (`api/_hours.js` + `assets/js/hours.js`).
+- **Toleransi masuk kembali:** tiap istirahat punya jam masuk kembali tepat waktu (bawaan **13:00** dan **16:00**) dan toleransi (bawaan **15 menit**, diatur di Setting).
+  Scan masuk setelah istirahat yang telat tapi masih dalam toleransi dicatat tepat jam tersebut (scan 13:07 → dicatat 13:00, jadi tidak ada utang menit). Scan lebih awal dicatat jam aslinya; lewat toleransi dicatat jam aslinya.
+  **Database lama:** jalankan `supabase/migration-toleransi-istirahat.sql` sekali (opsional, karena data lama otomatis memakai bawaan 13:00/16:00).
   Di app, scan istirahat/masuk yang berhasil menampilkan overlay "Selamat Istirahat" / "Selamat bekerja!".
 - Kerja bersih = (sekarang atau jam pulang − jam masuk) − total istirahat. Pulang hanya boleh bila kerja bersih ≥ `target_minutes`
   (default 480 = 8 jam) dan tidak sedang istirahat. Jam pulang paling cepat = jam masuk + target + total istirahat.
@@ -35,3 +38,8 @@ Untuk produksi: ganti password default / hapus akun contoh, dan jangan set `HADI
 - `assets/js/core.js` membangun sidebar/navbar sekali, lalu router menukar isi `#app-content` (fetch + prefetch, `history.pushState`).
 - Tiap halaman punya skrip sendiri di `assets/js/pages/<nama>.js` (`Pages.nama = () => { ...; return cleanup }`). Cleanup menutup realtime, interval, dan modal saat pindah halaman.
 - Jabatan: **Karyawan** (role `employee`, memakai app) atau **Admin** (role `admin`, masuk dashboard). NIP otomatis berawalan `RB-`.
+
+## Catatan app karyawan
+- Kamera tidak pernah dibuka sebelum status absen hari ini terbaca; bila gagal membaca (jaringan), kamera tetap tertutup dan dicoba ulang otomatis.
+- Layar mati / pindah aplikasi = kamera dimatikan; saat kembali, status dibaca ulang dari server dulu.
+- Kamera otomatis hanya terbuka: sebelum absen masuk, 40 menit sejak jam keluar istirahat dibuka, saat scan masuk setelah istirahat dibuka, dan saat sudah boleh pulang. Selain itu ketuk 2x.

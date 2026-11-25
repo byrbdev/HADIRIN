@@ -1,6 +1,6 @@
 Pages.setting = () => {
-  const DEF = [{ out: '11:40', back: '12:40' }, { out: '14:40', back: '15:40' }];
-  const setBrk = (v) => { const d = Array.isArray(v) && v.length === 2 ? v : DEF; $('#o1').value = d[0].out; $('#b1').value = d[0].back; $('#o2').value = d[1].out; $('#b2').value = d[1].back; };
+  const DEF = [{ out: '11:40', back: '12:40', due: '13:00', grace: 15 }, { out: '14:40', back: '15:40', due: '16:00', grace: 15 }];
+  const setBrk = (v) => { const d = Array.isArray(v) && v.length === 2 ? v : DEF; $('#o1').value = d[0].out; $('#b1').value = d[0].back; $('#o2').value = d[1].out; $('#b2').value = d[1].back; $('#d1').value = d[0].due || DEF[0].due; $('#d2').value = d[1].due || DEF[1].due; $('#gr').value = Number.isInteger(d[0].grace) ? d[0].grace : DEF[0].grace; };
   (async () => {
     const { data: s } = await sb.from('settings').select('*').eq('id', 1).single(); if (!s || !$('#lat')) return;
     $('#lat').value = s.office_lat; $('#lng').value = s.office_lng; $('#rad').value = s.radius_m; $('#ws').value = s.work_start?.slice(0, 5); $('#tm').value = s.target_minutes || 480; setBrk(s.break_slots);
@@ -12,11 +12,15 @@ Pages.setting = () => {
   };
   $('#brk-def').onclick = () => setBrk(DEF);
   $('#f3').onsubmit = async (e) => {
-    e.preventDefault(); const o1 = $('#o1').value, b1 = $('#b1').value, o2 = $('#o2').value, b2 = $('#b2').value;
+    e.preventDefault(); const o1 = $('#o1').value, b1 = $('#b1').value, d1 = $('#d1').value, o2 = $('#o2').value, b2 = $('#b2').value, d2 = $('#d2').value, gr = Math.round(+$('#gr').value);
     if (!(o1 < b1)) return toast('Istirahat pertama: scan masuk harus setelah scan keluar', false);
+    if (!(b1 <= d1)) return toast('Istirahat pertama: jam masuk kembali tidak boleh sebelum scan masuk dibuka', false);
+    if (!(d1 <= o2)) return toast('Istirahat kedua harus dimulai setelah jam masuk kembali istirahat pertama', false);
+    if (!(b2 <= d2)) return toast('Istirahat kedua: jam masuk kembali tidak boleh sebelum scan masuk dibuka', false);
+    if (!(gr >= 0 && gr <= 120)) return toast('Toleransi 0 sampai 120 menit', false);
     if (!(b1 <= o2)) return toast('Istirahat kedua harus dimulai setelah scan masuk istirahat pertama', false);
     if (!(o2 < b2)) return toast('Istirahat kedua: scan masuk harus setelah scan keluar', false);
-    const { error } = await sb.from('settings').update({ break_slots: [{ out: o1, back: b1 }, { out: o2, back: b2 }] }).eq('id', 1);
+    const { error } = await sb.from('settings').update({ break_slots: [{ out: o1, back: b1, due: d1, grace: gr }, { out: o2, back: b2, due: d2, grace: gr }] }).eq('id', 1);
     error ? toast(/break_slots/.test(error.message) ? 'Kolom break_slots belum ada: jalankan supabase/migration-jam-istirahat.sql di Supabase SQL Editor' : error.message, false) : toast('Jam istirahat tersimpan');
   };
   $('#f2').onsubmit = async (e) => {
