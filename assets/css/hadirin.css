@@ -27,3 +27,13 @@ html.boot::before{content:"HADIRIN By RB";visibility:visible;position:fixed;inse
 #qr-full .qr-date{font-size:clamp(1rem,3vh,1.6rem);opacity:.85}
 #qr-full .qr-brand{position:absolute;top:1.25rem;left:1.5rem;font-weight:800;letter-spacing:.1em;color:var(--brand-lime)}
 #qr-full .qr-close{position:absolute;top:1rem;right:1rem}
+
+/* Foto profil huruf */
+.avatar-letter{width:38px;height:38px;flex:none;border-radius:var(--radius-lg);background:var(--brand-lime);color:var(--brand-forest-dark);display:grid;place-items:center;font-weight:800;font-size:1rem;line-height:1;user-select:none}
+.avatar-letter.avatar-side{width:42px;height:42px;font-size:1.1rem}
+.avatar-letter.avatar-lg{width:72px;height:72px;font-size:2rem;border-radius:22px;margin:0 auto .85rem}
+.navbar-profile-btn .avatar-letter{width:38px;height:38px}
+/* Footer: dibuat oleh */
+.footer-made{color:var(--text-muted-green);font-weight:500}
+.footer-made-link{color:var(--brand-forest-medium);font-weight:700;text-decoration:none;border-bottom:1px solid transparent;transition:color .2s,border-color .2s}
+.footer-made-link:hover{color:var(--brand-forest-dark);border-bottom-color:currentColor}

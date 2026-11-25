@@ -181,7 +181,7 @@ a:hover {
 }
 
 .sidebar-brand:hover i {
-    transform: scale(1.1) rotate(90deg);
+    transform: scale(1.08);
     color: var(--brand-lime-hover);
 }
 
@@ -1622,13 +1622,15 @@ span.flatpickr-weekday {
     color: var(--brand-forest-medium);
     font-size: 0.95rem;
     display: inline-block;
-    animation: rotateLogo 12s linear infinite;
+    animation: logoBreath 3.2s ease-in-out infinite;
 }
 
-@keyframes rotateLogo {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+/* Animasi logo: napas halus (tanpa berputar) */
+@keyframes logoBreath {
+    0%, 100% { transform: translateY(0) scale(1); opacity: 1; }
+    50% { transform: translateY(-2px) scale(1.07); opacity: .88; }
 }
+@media (prefers-reduced-motion: reduce) { .footer-logo i, .login-brand i, .error-title-huge .bi-asterisk { animation: none !important; } }
 
 .footer-separator {
     color: var(--border-light);
@@ -1799,7 +1801,7 @@ span.flatpickr-weekday {
 .login-brand i {
     color: var(--brand-forest-medium);
     font-size: 1.75rem;
-    animation: rotateLogo 15s linear infinite;
+    animation: logoBreath 3.2s ease-in-out infinite;
     transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -2994,7 +2996,7 @@ span.flatpickr-weekday {
     font-size: 5.5rem;
     color: var(--brand-lime);
     display: inline-block;
-    animation: asteriskSpin 20s infinite linear;
+    animation: logoBreath 3.2s ease-in-out infinite;
 }
 
 .error-subtitle {

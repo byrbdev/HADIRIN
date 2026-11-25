@@ -27,6 +27,9 @@ async function api(path, method, body) {
 }
 const MENU = [['dashboard', 'bi-grid-fill', 'Dashboard'], ['absensi', 'bi-calendar-check-fill', 'Absensi'], ['karyawan', 'bi-people-fill', 'Karyawan'], ['keterangan', 'bi-file-earmark-medical', 'Keterangan'], ['setting', 'bi-gear-fill', 'Setting']];
 const BRAND = 'HADIRIN By RB';
+// Foto profil berupa huruf pertama nama (Adit -> A)
+const initial = (n) => (String(n || '').trim()[0] || '?').toUpperCase();
+const avatar = (n, cls = '') => `<div class="avatar-letter ${cls}" aria-hidden="true">${esc(initial(n))}</div>`;
 
 // ---------- Router admin tanpa reload ----------
 // Shell (sidebar + navbar + footer) dibangun SEKALI. Perpindahan halaman hanya menukar isi #app-content.
@@ -82,15 +85,15 @@ function buildShell(me, session) {
    <div class="flex-grow-1"><div class="sidebar-menu-section"><div class="sidebar-menu-title">Menu</div><ul class="sidebar-menu-list">
    ${MENU.map(([k, i, t]) => `<li class="sidebar-menu-item"><a href="/${k}" data-k="${k}" class="sidebar-menu-link"><i class="bi ${i}"></i><span>${t}</span></a></li>`).join('')}
    </ul></div></div>
-   <div class="sidebar-profile"><img src="/assets/images/avatar.png" class="sidebar-profile-img" alt=""><div class="sidebar-profile-info"><div class="sidebar-profile-name">${esc(me.full_name)}</div><div class="sidebar-profile-email">${esc(session.user.email)}</div></div></div>`;
+   <div class="sidebar-profile">${avatar(me.full_name, 'avatar-side')}<div class="sidebar-profile-info"><div class="sidebar-profile-name">${esc(me.full_name)}</div><div class="sidebar-profile-email">${esc(session.user.email)}</div></div></div>`;
   const main = document.createElement('div'); main.className = 'main-wrapper';
   main.innerHTML = `<header class="navbar-custom"><div class="navbar-left"><button class="sidebar-toggle-btn me-2" id="sidebar-toggle" aria-label="Toggle Navigation"><i class="bi bi-list"></i></button><strong id="clock"></strong></div><div></div>
    <div class="navbar-actions"><button class="navbar-action-btn me-1" id="btn-fullscreen" aria-label="Fullscreen"><i class="bi bi-arrows-fullscreen"></i></button>
-   <div class="dropdown"><button class="navbar-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"><img src="/assets/images/avatar.png" alt="" class="navbar-profile-img"><span class="navbar-profile-name d-none d-md-inline">${esc(me.full_name)}</span><i class="bi bi-chevron-down navbar-profile-caret"></i></button>
+   <div class="dropdown"><button class="navbar-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">${avatar(me.full_name, 'avatar-nav')}<span class="navbar-profile-name d-none d-md-inline">${esc(me.full_name)}</span><i class="bi bi-chevron-down navbar-profile-caret"></i></button>
    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-profile"><li class="dropdown-header">Selamat datang!</li><li><a class="dropdown-item" href="/setting" data-k="setting"><i class="bi bi-gear"></i> Setting</a></li><li><hr class="dropdown-divider"></li><li><a class="dropdown-item text-danger" href="#" id="logout"><i class="bi bi-box-arrow-right"></i> Keluar</a></li></ul></div></div></header>`;
   main.appendChild(content);
   main.insertAdjacentHTML('beforeend', `<footer class="footer-custom"><div class="footer-left"><span class="footer-logo"><i class="bi bi-person-check-fill"></i> ${BRAND}</span><span class="footer-separator">|</span><span class="footer-copy">&copy; ${new Date().getFullYear()} ${BRAND} &bull; Sistem Absensi Karyawan</span></div>
-   <div class="footer-right"><ul class="footer-links">${MENU.map(([k, , t]) => `<li><a href="/${k}" data-k="${k}" class="footer-link">${t}</a></li>`).join('')}</ul></div></footer>`);
+   <div class="footer-right"><span class="footer-made">Dibuat oleh <a href="https://byrb.vercel.app" target="_blank" rel="noopener noreferrer" class="footer-made-link">By RB Developer</a></span></div></footer>`);
   document.body.prepend(main); document.body.prepend(side);
   const ov = document.createElement('div'); ov.className = 'sidebar-overlay'; document.body.appendChild(ov);
   const tg = (f) => { side.classList.toggle('show', f); ov.classList.toggle('show', f); };
