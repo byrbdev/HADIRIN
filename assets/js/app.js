@@ -44,7 +44,7 @@ function renderStatus() {
   const dur = (n) => n >= 60 ? HOURS.fmt(n) : `${n}m`;
   x.innerHTML = m.canOut
     ? `<div class="st-main">Sudah boleh pulang</div><div class="st-sub">Istirahat ${dur(m.breakMin)}</div>`
-    : `<div class="st-main">Pulang paling cepat <b>${fmtTime(m.earliest)}</b></div><div class="st-sub">Istirahat ${dur(m.breakMin)}` + (m.lateMin ? ` &nbsp;•&nbsp; Telat ${dur(m.lateMin)}` : '') + `</div>` + (m.lateMin ? `<div class="st-tip">Potong jam istirahat atau pulang lebih lambat</div>` : '');
+    : `<div class="st-main">Pulang paling cepat <b>${fmtTime(m.earliest)}</b></div><div class="st-sub">Istirahat ${dur(m.breakMin)}` + `</div>`;
   seg.classList.remove('d-none'); $('#m-out').disabled = !m.canOut; $('#m-out').style.opacity = m.canOut ? 1 : .45; if (!m.canOut && mode === 'out') mode = 'break'; if (m.canOut && !prevOut) mode = 'out'; prevOut = m.canOut;   // kerja bersih sudah cukup: otomatis ke mode Pulang (masih bisa pilih Istirahat)
   seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.m === mode));
   $('#hint').textContent = mode === 'out' ? 'Scan QR untuk absen pulang' : g.canStart ? 'Scan QR saat keluar istirahat' : g.msg.replace(/\.$/, '');
@@ -164,11 +164,11 @@ async function loadRiwayat() {
   const [y, m] = ym.split('-').map(Number), a = ym + '-01', b = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
   $('#ym').textContent = new Date(a).toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: 'UTC' });
   const data = (await sb.from('attendance').select('*').eq('user_id', me.id).gte('work_date', a).lte('work_date', b).order('work_date', { ascending: false })).data || [];
-  let mins = 0, lt = 0; const rs = data.map((r) => ({ r, m: calc(r) })); rs.forEach(({ r, m }) => { if (r.check_out) mins += m.netMin; if (m.lateMin) lt++; });
-  $('#sum').innerHTML = `<div><b>${data.length}</b><span>Hadir</span></div><div><b>${lt}</b><span>Hari telat</span></div><div><b>${Math.floor(mins / 60)}j</b><span>Jam bersih</span></div>`;
+  let mins = 0; const rs = data.map((r) => ({ r, m: calc(r) })); rs.forEach(({ r, m }) => { if (r.check_out) mins += m.netMin; });
+  $('#sum').innerHTML = `<div><b>${data.length}</b><span>Hadir</span></div><div><b>${Math.floor(mins / 60)}j</b><span>Jam bersih</span></div>`;
   $('#rlist').innerHTML = rs.map(({ r, m }) => { const today = r.work_date === wibDate(), st = r.check_out ? ['success', 'Selesai'] : today ? ['pending', m.onBreak ? 'Istirahat' : 'Bekerja'] : ['failed', 'Belum pulang'];
    return `<div class="sheet"><div class="row2"><b>${fd(r.work_date)}</b><span class="badge-table ${st[0]}">${st[1]}</span></div>
-   <div class="mut mt-1">Masuk ${fmtTime(r.check_in)} • Pulang ${fmtTime(r.check_out)}</div><div class="mut">Istirahat ${m.breakMin}m • Kerja bersih ${HOURS.fmt(m.netMin)}${m.lateMin ? ` • Telat ${m.lateMin}m` : ''}</div></div>`; }).join('') || '<div class="sheet mut text-center">Belum ada data bulan ini</div>';
+   <div class="mut mt-1">Masuk ${fmtTime(r.check_in)} • Pulang ${fmtTime(r.check_out)}</div><div class="mut">Istirahat ${m.breakMin}m • Kerja bersih ${HOURS.fmt(m.netMin)}</div></div>`; }).join('') || '<div class="sheet mut text-center">Belum ada data bulan ini</div>';
 }
 const shift = (n) => { const [y, m] = ym.split('-').map(Number); ym = new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7); loadRiwayat(); };
 $('#pm').onclick = () => shift(-1); $('#nm2').onclick = () => shift(1);

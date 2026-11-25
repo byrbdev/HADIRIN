@@ -13,7 +13,7 @@ let m = summarize(a, new Date(at('15:00')).getTime()); assert.equal(m.breakMin, 
 m = summarize(a, new Date(at('14:59')).getTime()); assert.equal(m.canOut, false); assert.equal(m.remainMin, 1);
 // Contoh 2: masuk 07:20, istirahat total 40 menit -> pulang 15:00 (utang telat lunas), dengan jam acuan 07:00
 a = { check_in: at('07:20'), breaks: [B('12:00', '12:20'), B('14:00', '14:20')] };
-m = summarize(a, new Date(at('15:00')).getTime(), 420, '07:00'); assert.equal(hm(m.earliest), '15:00'); assert.equal(m.canOut, true); assert.equal(m.lateMin, 20);
+m = summarize(a, new Date(at('15:00')).getTime(), 420, '07:00'); assert.equal(hm(m.earliest), '15:00'); assert.equal(m.canOut, true)
 // Sedang istirahat: tidak boleh pulang walau jam sudah lewat, kerja bersih tidak bertambah
 a = { check_in: at('07:00'), breaks: [{ s: at('15:00'), e: null }] };
 m = summarize(a, new Date(at('16:00')).getTime()); assert.equal(m.onBreak, true); assert.equal(m.canOut, false); assert.equal(m.netMin, 480);

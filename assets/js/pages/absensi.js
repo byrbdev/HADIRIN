@@ -16,7 +16,7 @@ Pages.absensi = () => {
     const q = $('#q').value.toLowerCase();
     view = rows.filter((r) => ((r.profiles?.full_name || '') + (r.profiles?.nip || '')).toLowerCase().includes(q));
     $('#rows').innerHTML = pg.slice(view).map((r) => { const c = calc(r), s = stat(r); return `<tr><td>${fd(r.work_date)}</td><td><div class="table-user-cell"><div><div class="table-user-name">${esc(r.profiles?.full_name)}</div><div class="table-user-sub">${esc(r.profiles?.position || 'Staff')}</div></div></div></td>
- <td>${fmtTime(r.check_in)}</td><td>${fmtTime(r.check_out)}</td><td>${c.lateMin ? c.lateMin + ' mnt' : '-'}</td><td>${c.breakMin} mnt</td><td>${net(r)}</td><td><span class="badge-table ${s[0]}">${s[1]}</span></td></tr>`; }).join('') || '<tr><td colspan="8" class="text-center text-muted py-4">Tidak ada data absensi pada periode ini</td></tr>';
+ <td>${fmtTime(r.check_in)}</td><td>${fmtTime(r.check_out)}</td><td>${c.breakMin} mnt</td><td>${net(r)}</td><td><span class="badge-table ${s[0]}">${s[1]}</span></td></tr>`; }).join('') || '<tr><td colspan="8" class="text-center text-muted py-4">Tidak ada data absensi pada periode ini</td></tr>';
   }
   async function load() {
     const [a, b] = range(); if (!a || !b) return; $('#per').textContent = a === b ? `Data absensi ${fd(a)}` : `Data absensi ${fd(a)} sampai ${fd(b)}`;
@@ -32,7 +32,7 @@ Pages.absensi = () => {
   $('#q').oninput = () => { pg.reset(); draw(); };
   $('#btn-export').onclick = () => {
     const c = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const csv = ['Tanggal,Nama,NIP,Jam Masuk,Jam Pulang,Telat (menit),Total Istirahat (menit),Kerja Bersih (menit),Status', ...view.map((r) => [r.work_date, r.profiles?.full_name, r.profiles?.nip, fmtTime(r.check_in), fmtTime(r.check_out), calc(r).lateMin, calc(r).breakMin, r.check_out || r.work_date === wibDate() ? calc(r).netMin : '', stat(r)[1]].map(c).join(','))].join('\r\n');
+    const csv = ['Tanggal,Nama,NIP,Jam Masuk,Jam Pulang,Total Istirahat (menit),Kerja Bersih (menit),Status', ...view.map((r) => [r.work_date, r.profiles?.full_name, r.profiles?.nip, fmtTime(r.check_in), fmtTime(r.check_out), calc(r).breakMin, r.check_out || r.work_date === wibDate() ? calc(r).netMin : '', stat(r)[1]].map(c).join(','))].join('\r\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' })); a.download = `absensi-${range().join('_')}.csv`; a.click();
   };
   (async () => {

@@ -19,7 +19,6 @@ body{background:var(--bg-canvas,#F4F6F5);-webkit-tap-highlight-color:transparent
 .alert-green-card .alert-green-bg-shape{width:150px;height:150px;bottom:-34px;right:-34px;opacity:.95}
 .st-main{font-size:.95rem;font-weight:600;line-height:1.35}.st-main b{font-weight:800;color:var(--brand-lime)}
 .st-sub{font-size:.8rem;opacity:.8;margin-top:.15rem}
-.st-tip{font-size:.72rem;opacity:.6;margin-top:.35rem;line-height:1.35}
 .scan{position:relative;touch-action:manipulation;user-select:none;-webkit-user-select:none;aspect-ratio:1/1.05;border-radius:var(--radius-xxl);background:var(--brand-forest-dark);overflow:hidden;box-shadow:var(--shadow-lg)}
 .scan video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s}.scan.live video{opacity:1}
 .frame{position:absolute;inset:16%;pointer-events:none;transition:all .4s}.scan.live .frame{inset:14%}

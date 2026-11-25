@@ -3,11 +3,11 @@ Pages.setting = () => {
   const setBrk = (v) => { const d = Array.isArray(v) && v.length === 2 ? v : DEF; $('#o1').value = d[0].out; $('#b1').value = d[0].back; $('#o2').value = d[1].out; $('#b2').value = d[1].back; $('#d1').value = d[0].due || DEF[0].due; $('#d2').value = d[1].due || DEF[1].due; $('#gr').value = Number.isInteger(d[0].grace) ? d[0].grace : DEF[0].grace; };
   (async () => {
     const { data: s } = await sb.from('settings').select('*').eq('id', 1).single(); if (!s || !$('#lat')) return;
-    $('#lat').value = s.office_lat; $('#lng').value = s.office_lng; $('#rad').value = s.radius_m; $('#ws').value = s.work_start?.slice(0, 5); $('#tm').value = s.target_minutes || 480; setBrk(s.break_slots);
+    $('#lat').value = s.office_lat; $('#lng').value = s.office_lng; $('#rad').value = s.radius_m; $('#tm').value = s.target_minutes || 480; setBrk(s.break_slots);
   })();
   $('#loc').onclick = () => navigator.geolocation.getCurrentPosition((p) => { $('#lat').value = p.coords.latitude.toFixed(6); $('#lng').value = p.coords.longitude.toFixed(6); }, () => toast('Izin lokasi ditolak', false));
   $('#f1').onsubmit = async (e) => {
-    e.preventDefault(); const { error } = await sb.from('settings').update({ office_lat: +$('#lat').value, office_lng: +$('#lng').value, radius_m: +$('#rad').value, work_start: $('#ws').value, target_minutes: +$('#tm').value }).eq('id', 1);
+    e.preventDefault(); const { error } = await sb.from('settings').update({ office_lat: +$('#lat').value, office_lng: +$('#lng').value, radius_m: +$('#rad').value, target_minutes: +$('#tm').value }).eq('id', 1);
     error ? toast(error.message, false) : toast('Setting tersimpan');
   };
   $('#brk-def').onclick = () => setBrk(DEF);

@@ -10,11 +10,8 @@ const HOURS = (() => {
     for (const b of breaks) breakMs += Math.max(0, (b.e ? fl(b.e) : end) - fl(b.s));
     const netMs = Math.max(0, end - cin - breakMs);
     const earliest = cin + target * MIN + breakMs;
-    const [h, m] = String(workStart).split(':').map(Number);
-    const inWib = new Date(cin + 7 * 3600e3), inMin = inWib.getUTCHours() * 60 + inWib.getUTCMinutes();
     return { breakMin: Math.round(breakMs / MIN), netMin: Math.round(netMs / MIN), onBreak: !!open && !a.check_out, earliest,
-      remainMin: Math.max(0, Math.ceil((target * MIN - netMs) / MIN)), canOut: !a.check_out && !open && netMs >= target * MIN,
-      lateMin: Math.max(0, inMin - (h * 60 + m)) };
+      remainMin: Math.max(0, Math.ceil((target * MIN - netMs) / MIN)), canOut: !a.check_out && !open && netMs >= target * MIN };
   }
   // Jendela istirahat (WIB) — salinan server: api/_hours.js
   const BREAK_SLOTS = [{ out: '11:40', back: '12:40', due: '13:00', grace: 15 }, { out: '14:40', back: '15:40', due: '16:00', grace: 15 }];

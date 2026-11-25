@@ -28,8 +28,8 @@ Untuk produksi: ganti password default / hapus akun contoh, dan jangan set `HADI
   Di app, scan istirahat/masuk yang berhasil menampilkan overlay "Selamat Istirahat" / "Selamat bekerja!".
 - Kerja bersih = (sekarang atau jam pulang − jam masuk) − total istirahat. Pulang hanya boleh bila kerja bersih ≥ `target_minutes`
   (default 480 = 8 jam) dan tidak sedang istirahat. Jam pulang paling cepat = jam masuk + target + total istirahat.
-- Telat bukan pelanggaran; hanya "utang menit" (informasi) yang lunas dengan memotong istirahat atau pulang lebih lambat.
-- Target diubah di Setting. Laporan admin memuat kolom Telat, Total Istirahat, Kerja Bersih (juga di Export CSV).
+- Tidak ada konsep telat masuk: jam masuk bebas, tidak ada data/kolom telat di app maupun laporan.
+- Target diubah di Setting. Laporan admin memuat kolom Total Istirahat, Kerja Bersih (juga di Export CSV).
 - **Database lama:** jalankan `supabase/migration-istirahat.sql` sekali di SQL Editor. Instalasi baru cukup `schema.sql`.
 - Tes aturan: `npm run test:rules`. Logika hitung ada di `api/_hours.js` (server) dan `assets/js/hours.js` (klien); tes memastikan keduanya sama.
 
