@@ -28,5 +28,14 @@ export default async function handler(req, res) {
     }
     return error ? res.status(400).json({ error: error.message }) : res.json({ ok: true });
   }
+  if (req.method === 'DELETE') {
+    if (!b.id) return res.status(400).json({ error: 'ID karyawan wajib' });
+    if (b.id === admin.id) return res.status(400).json({ error: 'Anda tidak dapat menghapus akun Anda sendiri' });
+    try { const { data: files } = await db.storage.from('leave-files').list(b.id); if (files?.length) await db.storage.from('leave-files').remove(files.map((f) => `${b.id}/${f.name}`)); } catch {}   // lampiran izin ikut dihapus
+    const { error } = await db.auth.admin.deleteUser(b.id);   // profiles, absensi, dan izin ikut terhapus (on delete cascade)
+    if (error) return res.status(400).json({ error: error.message });
+    await db.from('profiles').delete().eq('id', b.id);
+    return res.json({ ok: true });
+  }
   res.status(405).end();
 }

@@ -43,6 +43,16 @@ const routeOf = (path) => { const k = path.replace(/^\/+|\/+$/g, '').replace(/\.
 const fetchFrag = (k) => _frag[k] || (_frag[k] = fetch('/' + k).then((r) => { if (!r.ok) throw new Error('Halaman tidak ditemukan'); return r.text(); })
   .then((t) => { const d = new DOMParser().parseFromString(t, 'text/html'); const c = d.querySelector('#app-content'); if (!c) throw new Error('Halaman tidak valid'); return { html: c.innerHTML, title: d.title }; })
   .catch((e) => { delete _frag[k]; throw e; }));
+// Dialog konfirmasi (hapus dsb.). Mengembalikan Promise<boolean>.
+function confirmBox(title, text, okText = 'Hapus') {
+  return new Promise((res) => {
+    const el = document.createElement('div'); el.className = 'modal fade page-modal'; el.tabIndex = -1;
+    el.innerHTML = `<div class="modal-dialog modal-dialog-centered"><div class="modal-content p-4"><h5 class="card-title mb-2">${esc(title)}</h5><p class="text-muted mb-4">${esc(text)}</p><div class="d-flex gap-2"><button type="button" class="btn-custom btn-custom-danger" data-ok>${esc(okText)}</button><button type="button" class="btn-custom btn-custom-light" data-bs-dismiss="modal">Batal</button></div></div></div>`;
+    document.body.appendChild(el); const m = new bootstrap.Modal(el); let ok = false;
+    el.querySelector('[data-ok]').onclick = () => { ok = true; m.hide(); };
+    el.addEventListener('hidden.bs.modal', () => { m.dispose(); el.remove(); res(ok); }); m.show();
+  });
+}
 // Modal dipindah ke <body> supaya selalu di atas backdrop & terpusat (tidak terjebak di dalam layout halaman)
 function hoistModals() { document.querySelectorAll('#app-content .modal').forEach((m) => { m.classList.add('page-modal'); document.body.appendChild(m); }); }
 function resetOverlays() {   // tutup modal / backdrop sisa halaman sebelumnya
