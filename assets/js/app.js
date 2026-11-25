@@ -1,5 +1,5 @@
 // HADIRIN app karyawan. Memakai helper dari core.js ($, sb, api, toast, fmtTime, fmtDur, wibDate, esc)
-let me, att, ws = '08:00:00', target = 420, slots = null, mode = 'break', stream, track, scanning = false, busy = false, manual = false, onHome = false, watch = null, lastBad = '', ym = wibDate().slice(0, 7), jenis = 'izin', dp;
+let me, att, ws = '08:00:00', target = 480, slots = null, mode = 'break', prevOut = false, stream, track, scanning = false, busy = false, manual = false, onHome = false, watch = null, lastBad = '', ym = wibDate().slice(0, 7), jenis = 'izin', dp;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const fd = (d) => new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const calc = (r) => HOURS.summarize(r, Date.now(), target, ws), brk = (r) => HOURS.breakState(r, Date.now(), slots);
@@ -27,7 +27,7 @@ async function loadSettings() {   // dibaca tiap membuka halaman Scan, supaya pe
 async function loadToday() { const { data } = await sb.from('attendance').select('*').eq('user_id', me.id).eq('work_date', wibDate()).maybeSingle(); att = data; renderStatus(); }
 function renderStatus() {
   $('#st-d').textContent = new Date(wibDate()).toLocaleDateString('id-ID', { dateStyle: 'full', timeZone: 'UTC' });
-  const x = $('#st-x'), seg = $('#mode'); x.textContent = ''; seg.classList.add('d-none');
+  const x = $('#st-x'), seg = $('#mode'); x.textContent = ''; seg.classList.add('d-none'); if (!att || att.check_out || calc(att).onBreak) prevOut = false;
   if (!att) { $('#st-b').textContent = 'Belum Absen'; $('#st-t').textContent = 'Scan QR untuk absen masuk'; $('#hint').textContent = 'Arahkan kamera ke QR di layar kantor'; return; }
   const m = calc(att);
   if (att.check_out) { $('#st-b').textContent = 'Selesai'; $('#st-t').textContent = `${fmtTime(att.check_in)} - ${fmtTime(att.check_out)} • Kerja bersih ${HOURS.fmt(m.netMin)}`; x.textContent = `Total istirahat ${m.breakMin} menit`; $('#hint').textContent = 'Absensi hari ini lengkap. Sampai jumpa besok!'; return; }
@@ -38,7 +38,7 @@ function renderStatus() {
   x.innerHTML = m.canOut
     ? `<div class="st-main">Sudah boleh pulang</div><div class="st-sub">Istirahat ${dur(m.breakMin)}</div>`
     : `<div class="st-main">Pulang paling cepat <b>${fmtTime(m.earliest)}</b></div><div class="st-sub">Istirahat ${dur(m.breakMin)}` + (m.lateMin ? ` &nbsp;•&nbsp; Telat ${dur(m.lateMin)}` : '') + `</div>` + (m.lateMin ? `<div class="st-tip">Potong jam istirahat atau pulang lebih lambat</div>` : '');
-  seg.classList.remove('d-none'); $('#m-out').disabled = !m.canOut; $('#m-out').style.opacity = m.canOut ? 1 : .45; if (!m.canOut && mode === 'out') mode = 'break';
+  seg.classList.remove('d-none'); $('#m-out').disabled = !m.canOut; $('#m-out').style.opacity = m.canOut ? 1 : .45; if (!m.canOut && mode === 'out') mode = 'break'; if (m.canOut && !prevOut) mode = 'out'; prevOut = m.canOut;   // kerja bersih sudah cukup: otomatis ke mode Pulang (masih bisa pilih Istirahat)
   seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.m === mode));
   $('#hint').textContent = mode === 'out' ? 'Scan QR untuk absen pulang' : g.canStart ? 'Scan QR saat keluar istirahat' : g.msg.replace(/\.$/, '');
 }

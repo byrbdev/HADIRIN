@@ -24,7 +24,7 @@ Untuk produksi: ganti password default / hapus akun contoh, dan jangan set `HADI
   (disimpan di `settings.break_slots`; **database lama:** jalankan `supabase/migration-jam-istirahat.sql` sekali). Bawaan ada di `BREAK_SLOTS` (`api/_hours.js` + `assets/js/hours.js`).
   Di app, scan istirahat/masuk yang berhasil menampilkan overlay "Selamat Istirahat" / "Selamat bekerja!".
 - Kerja bersih = (sekarang atau jam pulang − jam masuk) − total istirahat. Pulang hanya boleh bila kerja bersih ≥ `target_minutes`
-  (default 420 = 7 jam) dan tidak sedang istirahat. Jam pulang paling cepat = jam masuk + target + total istirahat.
+  (default 480 = 8 jam) dan tidak sedang istirahat. Jam pulang paling cepat = jam masuk + target + total istirahat.
 - Telat bukan pelanggaran; hanya "utang menit" (informasi) yang lunas dengan memotong istirahat atau pulang lebih lambat.
 - Target diubah di Setting. Laporan admin memuat kolom Telat, Total Istirahat, Kerja Bersih (juga di Export CSV).
 - **Database lama:** jalankan `supabase/migration-istirahat.sql` sekali di SQL Editor. Instalasi baru cukup `schema.sql`.

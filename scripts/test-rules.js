@@ -33,6 +33,17 @@ g = breakState({ ...noBrk, breaks: [{ s: at('11:45'), e: null }] }, T('12:39'));
 g = breakState({ ...noBrk, breaks: [{ s: at('11:45'), e: null }] }, T('12:40')); assert.equal(g.canEnd, true);
 g = breakState({ ...noBrk, breaks: [B('11:45', '12:45'), { s: at('14:45'), e: null }] }, T('15:39')); assert.equal(g.canEnd, false);
 g = breakState({ ...noBrk, breaks: [B('11:45', '12:45'), { s: at('14:45'), e: null }] }, T('15:40')); assert.equal(g.canEnd, true);
+// Target tercapai = boleh pulang, tanpa harus mengambil istirahat (kedua / pertama) lebih dulu
+let e = { check_in: at('06:00'), breaks: [] };                      // masuk pagi sekali, tidak istirahat sama sekali
+assert.equal(summarize(e, T('12:59')).canOut, false); assert.equal(summarize(e, T('13:00')).canOut, true); assert.equal(hm(summarize(e, T('13:00')).earliest), '13:00');
+e = { check_in: at('07:00'), breaks: [] };                          // tidak istirahat: 07:00 -> 14:00 (sebelum jendela istirahat ke-2 dibuka 14:40)
+assert.equal(summarize(e, T('14:00')).canOut, true); assert.equal(breakState(e, T('14:00')).canStart, true);   // jendela istirahat tidak menghalangi
+e = { check_in: at('06:30'), breaks: [B('11:45', '12:45')] };       // hanya istirahat pertama (60 mnt) -> pulang 14:30
+assert.equal(summarize(e, T('14:29')).canOut, false); assert.equal(summarize(e, T('14:30')).canOut, true); assert.equal(breakState(e, T('14:30')).canStart, false);
+e = { check_in: at('07:00'), breaks: [B('11:45', '12:45')] };       // 07:00 + 7j + 60 mnt = 15:00; di 14:45 istirahat ke-2 sudah dibuka tapi target belum tercapai
+assert.equal(summarize(e, T('14:45')).canOut, false); assert.equal(summarize(e, T('15:00')).canOut, true);
+e = { check_in: at('06:00'), breaks: [{ s: at('11:45'), e: null }] }; // sedang istirahat: tetap harus kembali masuk dulu
+assert.equal(summarize(e, T('14:00')).canOut, false);
 // Jam istirahat dari Setting: jam custom dipakai; data tidak valid / kosong -> kembali ke bawaan
 const CS = [{ out: '11:30', back: '12:15' }, { out: '14:00', back: '14:45' }];
 g = breakState(noBrk, T('11:30'), CS); assert.equal(g.canStart, true); assert.equal(g.backAt, '12:15');

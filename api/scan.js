@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   const d = Math.round(dist(s.office_lat, s.office_lng, lat, lng));
   if (d > s.radius_m) return res.status(403).json({ error: `Anda berada ${d} m dari kantor (maksimal ${s.radius_m} m).` });
   const { data: a } = await db.from('attendance').select('*').eq('user_id', user.id).eq('work_date', date).maybeSingle();
-  const now = new Date().toISOString(), target = s.target_minutes || 420;
+  const now = new Date().toISOString(), target = s.target_minutes || 480;
   if (!a) {
     const { error } = await db.from('attendance').insert({ user_id: user.id, work_date: date, check_in: now, in_lat: lat, in_lng: lng, breaks: [] });
     return error ? res.status(500).json({ error: error.message }) : res.json({ action: 'in', time: now, distance: d });
