@@ -29,7 +29,12 @@ Pages.dashboard = () => {
   const clockTxt = () => new Date().toLocaleTimeString('id-ID', { hour12: false, timeZone: 'Asia/Jakarta' }).replace(/\./g, ':');
   const dateTxt = () => new Date(qrInfo.date).toLocaleDateString('id-ID', { dateStyle: 'full', timeZone: 'UTC' });
   const drawQR = (el) => { el.innerHTML = ''; new QRCode(el, { text: qrInfo.token, width: 560, height: 560, correctLevel: QRCode.CorrectLevel.M }); };
+  const QR_LIB = '/assets/libs/qrcodejs/qrcode.min.js';
+  const SKEL = '<div class="qr-skel" aria-label="Memuat QR"></div>';
   async function fetchQR() { qrInfo = await api('/api/qr', 'GET'); }
+  // Siapkan token + pustaka QR di latar belakang begitu dashboard dibuka, jadi klik tombol langsung menampilkan QR
+  let qrReady = null;
+  const prepareQR = (force) => (qrReady && !force ? qrReady : (qrReady = Promise.all([qrInfo && qrInfo.date === wibDate() && !force ? qrInfo : fetchQR(), loadScript(QR_LIB)]).catch((e) => { qrReady = null; throw e; })));
   function qrTick() {
     document.querySelectorAll('.qr-clock').forEach((c) => (c.textContent = clockTxt()));
     if (qrInfo && wibDate() !== qrInfo.date) {   // lewat tengah malam WIB: token baru otomatis
@@ -52,13 +57,17 @@ Pages.dashboard = () => {
     ensureQRTimer();
   }
   $('#btn-qr').onclick = async () => {
-    try {
-      await Promise.all([fetchQR(), loadScript('https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js')]);
-      const slot = $('#qr'); slot.classList.add('qr-slot'); drawQR(slot); $('#qr-date').textContent = dateTxt();
-      const m = bootstrap.Modal.getOrCreateInstance('#qrModal'); m.show(); ensureQRTimer();
-    } catch (e) { toast(e.message, false); }
+    const slot = $('#qr'); slot.classList.add('qr-slot');
+    const ready = qrInfo && window.QRCode && qrInfo.date === wibDate();
+    if (ready) { drawQR(slot); $('#qr-date').textContent = dateTxt(); }   // sudah siap: langsung tampil
+    else { slot.innerHTML = SKEL; $('#qr-date').textContent = ''; }       // belum siap: modal tetap langsung terbuka dengan placeholder
+    bootstrap.Modal.getOrCreateInstance('#qrModal').show(); ensureQRTimer();
+    if (ready) return;
+    try { await prepareQR(!!qrInfo && qrInfo.date !== wibDate()); if (!alive) return; drawQR(slot); $('#qr-date').textContent = dateTxt(); }
+    catch (e) { slot.innerHTML = ''; bootstrap.Modal.getInstance('#qrModal')?.hide(); toast(e.message, false); }
   };
   $('#btn-qr-full').onclick = openFull;
+  prepareQR().catch(() => {});   // prefetch senyap
   $('#qrModal').addEventListener('hidden.bs.modal', stopQRTimer);
 
   let ch = sb.channel('rt-' + Date.now()).on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, load).on('postgres_changes', { event: '*', schema: 'public', table: 'leaves' }, load).subscribe(); chans.push(ch);
