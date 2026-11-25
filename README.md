@@ -1,4 +1,4 @@
-# HADIRIN — sisi Admin (Spark Admin + Supabase)
+# HADIRIN By RB — sisi Admin (Spark Admin + Supabase)
 
 ## Jalankan lokal (tanpa Vercel)
 1. `npm install`
@@ -29,3 +29,9 @@ Untuk produksi: ganti password default / hapus akun contoh, dan jangan set `HADI
 - Target diubah di Setting. Laporan admin memuat kolom Telat, Total Istirahat, Kerja Bersih (juga di Export CSV).
 - **Database lama:** jalankan `supabase/migration-istirahat.sql` sekali di SQL Editor. Instalasi baru cukup `schema.sql`.
 - Tes aturan: `npm run test:rules`. Logika hitung ada di `api/_hours.js` (server) dan `assets/js/hours.js` (klien); tes memastikan keduanya sama.
+
+## Struktur admin (tanpa reload antar halaman)
+- `assets/js/guard.js` jalan di `<head>`: tanpa sesi login langsung ke `/login`, dan halaman ditutup layar boot sampai admin terverifikasi (tidak ada kilatan dashboard).
+- `assets/js/core.js` membangun sidebar/navbar sekali, lalu router menukar isi `#app-content` (fetch + prefetch, `history.pushState`).
+- Tiap halaman punya skrip sendiri di `assets/js/pages/<nama>.js` (`Pages.nama = () => { ...; return cleanup }`). Cleanup menutup realtime, interval, dan modal saat pindah halaman.
+- Jabatan: **Karyawan** (role `employee`, memakai app) atau **Admin** (role `admin`, masuk dashboard). NIP otomatis berawalan `RB-`.

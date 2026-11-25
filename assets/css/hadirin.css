@@ -1,3 +1,26 @@
 /* HADIRIN: tambahan kecil memakai design token Spark Admin (modal belum ada di template) */
 .modal-content { border: 0; border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); font-family: var(--bs-body-font-family); }
 .modal-backdrop.show { opacity: .5; background: var(--brand-forest-dark); }
+
+/* ---- Boot: layar penutup sampai login terverifikasi (anti-glitch) ---- */
+html.boot{background:#051C12}
+html.boot body{visibility:hidden}
+html.boot::before{content:"HADIRIN By RB";visibility:visible;position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#051C12;color:#B4F105;font:800 1.6rem/1 'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:.12em;animation:bootpulse 1.2s ease-in-out infinite}
+@keyframes bootpulse{50%{opacity:.45}}
+/* transisi halus antar halaman admin */
+#app-content{flex:1 1 auto;min-width:0}
+#app-content.page-in{animation:pagein .22s ease-out both}
+@keyframes pagein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* brand */
+.brand-by{font-size:.55em;font-weight:700;letter-spacing:.06em;opacity:.7;margin-left:.15rem}
+.login-brand .brand-by{color:var(--brand-forest-medium);opacity:1}
+/* QR hari ini */
+#qr canvas,#qr img{width:100%!important;height:auto!important;display:block}
+.qr-box{width:min(280px,100%);padding:12px;background:#fff;border-radius:16px;border:1px solid #e3e8e5}
+.qr-clock{font-variant-numeric:tabular-nums;font-weight:800;font-size:1.9rem;letter-spacing:.04em;color:var(--brand-forest-dark)}
+#qr-full{position:fixed;inset:0;z-index:5000;background:var(--brand-forest-dark);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.1rem;text-align:center;padding:1rem}
+#qr-full .qr-box{width:min(68vh,86vw);padding:clamp(12px,2vw,28px);border-radius:28px}
+#qr-full .qr-clock{color:var(--brand-lime);font-size:clamp(2.4rem,9vh,5.5rem);line-height:1}
+#qr-full .qr-date{font-size:clamp(1rem,3vh,1.6rem);opacity:.85}
+#qr-full .qr-brand{position:absolute;top:1.25rem;left:1.5rem;font-weight:800;letter-spacing:.1em;color:var(--brand-lime)}
+#qr-full .qr-close{position:absolute;top:1rem;right:1rem}

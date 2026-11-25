@@ -6,7 +6,7 @@ body{background:var(--bg-canvas,#F4F6F5);-webkit-tap-highlight-color:transparent
 #splash.hide{opacity:0;visibility:hidden}
 .sp-logo{width:92px;height:92px;border-radius:28px;background:var(--brand-lime);color:var(--brand-forest-dark);display:grid;place-items:center;font-size:3rem;animation:pop .8s cubic-bezier(.2,1.4,.4,1) both;position:relative}
 .sp-logo:before,.sp-logo:after{content:"";position:absolute;inset:0;border-radius:28px;border:2px solid var(--brand-lime);animation:ring-soft 2s infinite}.sp-logo:after{animation-delay:1s}
-.sp-name{font-size:2rem;font-weight:800;letter-spacing:.12em;margin-top:2.25rem;animation:up .8s .4s both}.sp-tag{color:var(--text-sidebar-muted);animation:up .8s .6s both}
+.sp-name{font-size:2rem;font-weight:800;letter-spacing:.12em;margin-top:2.25rem;animation:up .8s .4s both}.sp-tag{color:var(--text-sidebar-muted);animation:up .8s .6s both}.sp-by{margin-top:.35rem;font-size:.75rem;letter-spacing:.08em;color:var(--text-sidebar-muted);opacity:.75;animation:up .8s .8s both}
 @keyframes ring-soft{to{transform:scale(1.5);opacity:0}}@keyframes pop{from{transform:scale(.2) rotate(-30deg);opacity:0}}@keyframes ring{to{transform:scale(1.9);opacity:0}}@keyframes up{from{opacity:0;transform:translateY(14px)}}
 .login-hero{background:var(--brand-forest-dark);color:#fff;margin:-1.25rem -1.25rem 0;padding:3.5rem 1.5rem 4.5rem;border-radius:0 0 32px 32px}
 .login-hero h1{margin-top:1.6rem!important}
