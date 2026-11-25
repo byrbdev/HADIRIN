@@ -6,7 +6,7 @@ const wibDate = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 1
 const fmtTime = (t) => t ? new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }).replace('.', ':') : '-';
 const fmtDur = (a, b) => { if (!a) return '-'; const m = Math.max(0, Math.round(((b ? new Date(b) : new Date()) - new Date(a)) / 6e4)); return `${Math.floor(m / 60)}j ${m % 60}m` + (b ? '' : ' (berjalan)'); };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const toast = (msg, ok = true) => { const d = document.createElement('div'); d.className = 'position-fixed top-0 end-0 m-3'; d.style.zIndex = 2000;
+const toast = (msg, ok = true) => { const d = document.createElement('div'); d.className = 'position-fixed top-0 end-0 m-3 toast-wrap'; d.style.zIndex = 2000;
   d.innerHTML = `<div class="alert-custom ${ok ? 'alert-custom-success' : 'alert-custom-danger'}"><i class="bi ${ok ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} alert-custom-icon"></i><div class="alert-custom-content">${esc(msg)}</div></div>`; document.body.appendChild(d); setTimeout(() => d.remove(), 3000); };
 // pagination ala Spark (table-footer-control)
 function pager(info, nav, per, redraw) {
@@ -100,8 +100,11 @@ function buildShell(me, session) {
   $('#sidebar-toggle').onclick = () => tg(!side.classList.contains('show')); ov.onclick = () => tg(false);
   $('#btn-fullscreen').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
   $('#logout').onclick = async (e) => { e.preventDefault(); await sb.auth.signOut(); location.replace('/login'); };
-  const tick = () => $('#clock').textContent = new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'medium', timeZone: 'Asia/Jakarta' });
+  const tick = () => { const n = new Date(); $('#clock').innerHTML = `<span class="clk-date">${n.toLocaleDateString('id-ID', { dateStyle: 'full', timeZone: 'Asia/Jakarta' })}</span><span class="clk-time">${n.toLocaleTimeString('id-ID', { timeStyle: 'medium', timeZone: 'Asia/Jakarta' })}</span>`; };
   tick(); setInterval(tick, 1000);
+  // tabel responsif: beri data-label pada tiap sel (dari header) supaya bisa tampil sebagai kartu di mobile
+  let _lt = 0; const labelTables = () => { _lt = 0; document.querySelectorAll('#app-content table.table-custom').forEach((t) => { const h = [...t.querySelectorAll('thead th')].map((x) => x.textContent.trim()); t.querySelectorAll('tbody tr').forEach((tr) => [...tr.children].forEach((td, i) => { if (td.colSpan > 1 || td.dataset.label !== undefined) return; td.dataset.label = h[i] || ''; })); }); };
+  new MutationObserver(() => { if (!_lt) _lt = requestAnimationFrame(labelTables); }).observe($('#app-content'), { childList: true, subtree: true });
   // navigasi tanpa reload: semua link menu dicegat
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a[data-k]'); if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;

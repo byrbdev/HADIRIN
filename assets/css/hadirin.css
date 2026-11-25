@@ -37,3 +37,83 @@ html.boot::before{content:"HADIRIN By RB";visibility:visible;position:fixed;inse
 .footer-made{color:var(--text-muted-green);font-weight:500}
 .footer-made-link{color:var(--brand-forest-medium);font-weight:700;text-decoration:none;border-bottom:1px solid transparent;transition:color .2s,border-color .2s}
 .footer-made-link:hover{color:var(--brand-forest-dark);border-bottom-color:currentColor}
+
+/* =====================================================================
+   RESPONSIF ADMIN (tablet & mobile)
+   ===================================================================== */
+html,body{max-width:100%}
+.main-wrapper{min-width:0;overflow-x:clip}
+.sidebar-wrapper{overflow-y:auto;overscroll-behavior:contain}
+.navbar-actions{margin-left:auto}
+.clk-date::after{content:" \00b7 ";opacity:.5}
+.clk-time{font-variant-numeric:tabular-nums}
+#clock{font-size:.95rem;line-height:1.3}
+.toast-wrap{max-width:calc(100vw - 1.5rem)}
+.table-footer-control .pagination{flex-wrap:wrap}
+
+/* ---- Tablet & di bawahnya (sidebar jadi laci) ---- */
+@media (max-width:1200px){
+  .sidebar-wrapper{height:100vh;height:100dvh;width:min(var(--sidebar-width),84vw);padding:1.5rem 1.25rem}
+  .navbar-custom{flex-wrap:nowrap!important;align-items:center;gap:.5rem}
+  .navbar-left{min-width:0;flex:1 1 auto}
+  .navbar-actions{flex:none}
+  #clock{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+}
+@media (min-width:769px) and (max-width:1200px){
+  .page-title{font-size:1.6rem}
+  .table-custom th,.table-custom td{padding:.9rem 1rem}
+  .table-search-box{max-width:none;flex:1 1 240px}
+}
+
+/* ---- Mobile ---- */
+@media (max-width:768px){
+  .main-wrapper{padding:1rem!important}
+  .navbar-custom{margin:-1rem -1rem 1.25rem!important;padding:.75rem 1rem!important}
+  .clk-date{display:none}
+  #clock{font-size:1rem}
+  .page-header{margin-bottom:1.25rem;gap:.85rem}
+  .page-title{font-size:1.4rem}
+  .page-header>.btn-custom{display:flex;width:100%}
+  .table-header-control,.table-footer-control{padding:1rem}
+  .table-search-box{max-width:none;width:100%;flex:1 1 100%}
+  .table-filter-group{width:100%;flex-wrap:wrap}
+  .table-filter-group>.dropdown,.table-filter-group>.btn-table-action{flex:1 1 auto}
+  .table-filter-group .btn-table-action{width:100%;justify-content:center}
+  #w-hari,#w-bulan,#w-rentang{flex:1 1 100%}
+  #w-rentang{display:flex;align-items:center;gap:.5rem}
+  .table-filter-group .form-control-custom{width:100%!important;flex:1 1 0;min-width:0}
+  .table-footer-control{flex-direction:column;align-items:stretch;text-align:center}
+  .table-footer-control .pagination{justify-content:center}
+  .modal-dialog{margin:.75rem}
+  .modal-content.p-4{padding:1.25rem!important}
+  .modal-content .d-flex.gap-2>.btn-custom{flex:1 1 auto}
+  .card.p-4{padding:1.25rem!important}
+  .card.alert-green-card{min-height:150px}
+  #qr-full .qr-brand{top:.75rem;left:1rem;font-size:.85rem}
+  .footer-custom{padding-bottom:.5rem}
+}
+@media (max-width:576px){
+  #btn-fullscreen{display:none}
+  .navbar-profile-btn{padding:.2rem}
+}
+
+/* ---- Tabel jadi kartu di layar kecil ---- */
+@media (max-width:640px){
+  .table-responsive{overflow-x:visible}
+  .table-custom,.table-custom tbody,.table-custom tr,.table-custom td{display:block;width:100%}
+  .table-custom thead{display:none}
+  .table-custom tbody tr{padding:.85rem 1rem;border-bottom:1px solid rgba(11,19,15,.07)}
+  .table-custom tbody tr:last-child{border-bottom:0}
+  .table-custom tbody tr:hover{background:transparent}
+  .table-custom td{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.4rem 0!important;border:0!important;white-space:normal;text-align:right;min-width:0}
+  .table-custom td::before{content:attr(data-label);flex:none;font-size:.68rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted-green);text-align:left}
+  .table-custom td:not([data-label])::before,.table-custom td[data-label=""]::before,.table-custom td[colspan]::before{display:none}
+  .table-custom td[colspan]{display:block;text-align:center}
+  .table-custom td:has(.table-user-cell){display:block;text-align:left;padding-bottom:.6rem!important}
+  .table-custom td:has(.table-user-cell)::before{display:none}
+  .table-custom td:has(.table-btn-action){padding-top:.7rem!important;justify-content:flex-end}
+  .table-custom td:has(.table-btn-action)::before{display:none}
+  .table-custom td:has(.table-btn-action)>div{width:100%;justify-content:flex-end!important;gap:.5rem!important}
+  .table-btn-action{width:38px;height:38px}
+}
+@media (prefers-reduced-motion:reduce){#app-content.page-in{animation:none}}
