@@ -15,11 +15,14 @@ html.boot::before{content:"HADIRIN By RB";visibility:visible;position:fixed;inse
 .brand-by{font-size:.55em;font-weight:700;letter-spacing:.06em;opacity:.7;margin-left:.15rem}
 .login-brand .brand-by{color:var(--brand-forest-medium);opacity:1}
 /* QR hari ini */
-#qr canvas,#qr img{width:100%!important;height:auto!important;display:block}
+/* berlaku untuk modal (#qr) DAN layar penuh (#qr-big): QR selalu mengisi kotak putihnya, persegi, tajam */
+.qr-slot{width:100%;aspect-ratio:1/1;line-height:0}
+.qr-slot canvas,.qr-slot img{width:100%!important;height:100%!important;display:block;image-rendering:pixelated;margin:0}
+.qr-slot canvas+img{position:static}
 .qr-box{width:min(280px,100%);padding:12px;background:#fff;border-radius:16px;border:1px solid #e3e8e5}
 .qr-clock{font-variant-numeric:tabular-nums;font-weight:800;font-size:1.9rem;letter-spacing:.04em;color:var(--brand-forest-dark)}
-#qr-full{position:fixed;inset:0;z-index:5000;background:var(--brand-forest-dark);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.1rem;text-align:center;padding:1rem}
-#qr-full .qr-box{width:min(68vh,86vw);padding:clamp(12px,2vw,28px);border-radius:28px}
+#qr-full{position:fixed;inset:0;z-index:5000;background:var(--brand-forest-dark);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(.5rem,2vh,1.1rem);overflow:hidden;text-align:center;padding:1rem}
+#qr-full .qr-box{width:min(56vh,86vw);flex:none;padding:clamp(12px,2vh,26px);border-radius:28px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
 #qr-full .qr-clock{color:var(--brand-lime);font-size:clamp(2.4rem,9vh,5.5rem);line-height:1}
 #qr-full .qr-date{font-size:clamp(1rem,3vh,1.6rem);opacity:.85}
 #qr-full .qr-brand{position:absolute;top:1.25rem;left:1.5rem;font-weight:800;letter-spacing:.1em;color:var(--brand-lime)}
