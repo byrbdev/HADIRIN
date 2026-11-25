@@ -43,8 +43,10 @@ const routeOf = (path) => { const k = path.replace(/^\/+|\/+$/g, '').replace(/\.
 const fetchFrag = (k) => _frag[k] || (_frag[k] = fetch('/' + k).then((r) => { if (!r.ok) throw new Error('Halaman tidak ditemukan'); return r.text(); })
   .then((t) => { const d = new DOMParser().parseFromString(t, 'text/html'); const c = d.querySelector('#app-content'); if (!c) throw new Error('Halaman tidak valid'); return { html: c.innerHTML, title: d.title }; })
   .catch((e) => { delete _frag[k]; throw e; }));
+// Modal dipindah ke <body> supaya selalu di atas backdrop & terpusat (tidak terjebak di dalam layout halaman)
+function hoistModals() { document.querySelectorAll('#app-content .modal').forEach((m) => { m.classList.add('page-modal'); document.body.appendChild(m); }); }
 function resetOverlays() {   // tutup modal / backdrop sisa halaman sebelumnya
-  document.querySelectorAll('#app-content .modal').forEach((m) => { try { bootstrap.Modal.getInstance(m)?.dispose(); } catch {} });
+  document.querySelectorAll('.page-modal').forEach((m) => { try { bootstrap.Modal.getInstance(m)?.dispose(); } catch {} m.remove(); });
   document.querySelectorAll('.modal-backdrop').forEach((b) => b.remove());
   document.body.classList.remove('modal-open'); document.body.style.removeProperty('overflow'); document.body.style.removeProperty('padding-right');
   document.querySelectorAll('.dropdown-menu.show').forEach((d) => d.classList.remove('show'));
@@ -55,7 +57,7 @@ async function render(k, push) {
   let f; try { [f] = await Promise.all([fetchFrag(k), loadScript('/assets/js/hours.js'), loadScript(`/assets/js/pages/${k}.js`)]); } catch (e) { if (id === _navId) toast(e.message, false); return; }
   if (id !== _navId) return;   // ada klik lain yang lebih baru
   try { _cleanup?.(); } catch {} _cleanup = null; resetOverlays();
-  const c = $('#app-content'); c.innerHTML = f.html; c.classList.remove('page-in'); void c.offsetWidth; c.classList.add('page-in');
+  const c = $('#app-content'); c.innerHTML = f.html; hoistModals(); c.classList.remove('page-in'); void c.offsetWidth; c.classList.add('page-in');
   document.title = f.title; setActive(k); _cur = k; if (push) history.pushState({ k }, '', '/' + k); scrollTo(0, 0); $('#sidebar')?.classList.remove('show'); $('.sidebar-overlay')?.classList.remove('show');
   try { _cleanup = (await Pages[k](_me)) || null; } catch (e) { console.error(e); toast(e.message, false); }
 }
@@ -108,7 +110,7 @@ async function bootAdmin(first) {
   if (!me || me.role !== 'admin' || !me.active) { await sb.auth.signOut(); const why = pe ? 'Gagal membaca profiles: ' + pe.message : !me ? 'Akun belum punya data di tabel profiles. Jalankan: npm run seed' : 'Akun ini bukan admin'; return location.replace('/login?e=' + encodeURIComponent(why)); }
   _me = me; await loadScript('/assets/js/hours.js');
   buildShell(me, session); setActive(first); _cur = first; history.replaceState({ k: first }, '', location.pathname);
-  $('#app-content').classList.add('page-in');
+  hoistModals(); $('#app-content').classList.add('page-in');
   root.classList.remove('boot');   // baru tampil setelah login terverifikasi & shell siap: tidak ada glitch
   try { _cleanup = (await Pages[first](me)) || null; } catch (e) { console.error(e); toast(e.message, false); }
   (window.requestIdleCallback || setTimeout)(prefetch, 300);

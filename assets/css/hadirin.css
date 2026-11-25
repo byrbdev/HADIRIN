@@ -9,8 +9,8 @@ html.boot::before{content:"HADIRIN By RB";visibility:visible;position:fixed;inse
 @keyframes bootpulse{50%{opacity:.45}}
 /* transisi halus antar halaman admin */
 #app-content{flex:1 1 auto;min-width:0}
-#app-content.page-in{animation:pagein .22s ease-out both}
-@keyframes pagein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+#app-content.page-in{animation:pagein .22s ease-out}   /* tanpa fill-mode: setelah selesai tidak ada stacking context yang menjebak modal */
+@keyframes pagein{from{opacity:0;transform:translateY(6px)}}
 /* brand */
 .brand-by{font-size:.55em;font-weight:700;letter-spacing:.06em;opacity:.7;margin-left:.15rem}
 .login-brand .brand-by{color:var(--brand-forest-medium);opacity:1}
