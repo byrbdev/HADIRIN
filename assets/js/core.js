@@ -57,7 +57,24 @@ function confirmBox(title, text, okText = 'Hapus') {
   });
 }
 // Modal dipindah ke <body> supaya selalu di atas backdrop & terpusat (tidak terjebak di dalam layout halaman)
-function hoistModals() { document.querySelectorAll('#app-content .modal').forEach((m) => { m.classList.add('page-modal'); document.body.appendChild(m); }); }
+// Susun isi modal jadi 3 bagian: header (judul + tombol X) tetap, isi yang bisa di-scroll, dan footer (tombol aksi) tetap
+function enhanceModal(m) {
+  if (m.id === 'qrModal') return;   // modal QR kecil, tetap sederhana
+  m.querySelectorAll('.modal-content').forEach((c) => {
+    if (c.dataset.enh) return; c.dataset.enh = 1; c.classList.remove('p-4'); c.classList.add('mc-split');
+    const kids = [...c.children], x = '<button type="button" class="modal-x" data-bs-dismiss="modal" aria-label="Tutup"><i class="bi bi-x-lg"></i></button>';
+    const head = kids[0]?.matches('h5') ? kids[0] : null;
+    const last = kids[kids.length - 1], foot = last && last !== head && last.matches('.d-flex') && last.querySelector('button') ? last : null;
+    const body = document.createElement('div'); body.className = 'mc-body';
+    kids.filter((k) => k !== head && k !== foot).forEach((k) => body.appendChild(k));
+    c.innerHTML = '';
+    if (head) { const h = document.createElement('div'); h.className = 'mc-head'; head.className = 'mc-title'; h.appendChild(head); h.insertAdjacentHTML('beforeend', x); c.appendChild(h); }
+    else c.insertAdjacentHTML('beforeend', x.replace('modal-x', 'modal-x modal-x-abs'));
+    c.appendChild(body);
+    if (foot) { const f = document.createElement('div'); f.className = 'mc-foot'; f.appendChild(foot); c.appendChild(f); }
+  });
+}
+function hoistModals() { document.querySelectorAll('#app-content .modal').forEach((m) => { enhanceModal(m); m.classList.add('page-modal'); document.body.appendChild(m); }); }
 function resetOverlays() {   // tutup modal / backdrop sisa halaman sebelumnya
   document.querySelectorAll('.page-modal').forEach((m) => { try { bootstrap.Modal.getInstance(m)?.dispose(); } catch {} m.remove(); });
   document.querySelectorAll('.modal-backdrop').forEach((b) => b.remove());

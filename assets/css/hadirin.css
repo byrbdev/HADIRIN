@@ -131,3 +131,24 @@ html,body{max-width:100%}
 .qr-skel{width:100%;height:100%;border-radius:10px;background:#EEF2F0;animation:qrskel 1.1s ease-in-out infinite}
 @keyframes qrskel{50%{opacity:.45}}
 
+/* ---- Modal berbentuk: header tetap | isi scroll | footer tetap ---- */
+.modal-dialog:has(.mc-split){max-width:600px}
+.modal-content.mc-split{padding:0!important;display:flex;flex-direction:column;overflow:hidden;position:relative;max-height:min(86vh,640px);max-height:min(86dvh,640px)}
+.mc-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.35rem 1.5rem 1.1rem;border-bottom:1px solid rgba(11,19,15,.08)}
+.mc-title{margin:0!important;font-size:1.3rem;font-weight:800;line-height:1.3;color:var(--text-main);min-width:0;overflow-wrap:anywhere}
+.mc-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:1.25rem 1.5rem;scrollbar-width:thin;scrollbar-color:rgba(11,19,15,.25) transparent}
+.mc-body::-webkit-scrollbar{width:6px}.mc-body::-webkit-scrollbar-thumb{background:rgba(11,19,15,.22);border-radius:99px}
+.mc-body>:last-child{margin-bottom:0!important}
+.mc-foot{flex:none;padding:1rem 1.5rem;border-top:1px solid rgba(11,19,15,.08);background:#fff}
+.mc-foot>.d-flex,.mc-foot.d-flex{margin:0!important}
+.modal-x{flex:none;width:38px;height:38px;border-radius:50%;border:0;background:rgba(11,19,15,.06);color:var(--text-muted-green);display:grid;place-items:center;font-size:.9rem;cursor:pointer;transition:background .2s,color .2s}
+.modal-x:hover{background:rgba(11,19,15,.12);color:var(--text-main)}
+.modal-x-abs{position:absolute;top:1rem;right:1rem;z-index:2}
+.modal-content.mc-split:has(.modal-x-abs) .mc-body{padding-top:1.5rem}
+@media (max-width:768px){
+  .modal-content.mc-split{max-height:calc(100vh - 1.5rem);max-height:calc(100dvh - 1.5rem)}
+  .mc-head{padding:1rem 1rem .85rem}.mc-title{font-size:1.15rem}
+  .mc-body{padding:1rem}
+  .mc-foot{padding:.85rem 1rem}
+}
+
