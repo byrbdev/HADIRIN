@@ -1,7 +1,7 @@
 // HADIRIN app karyawan. Memakai helper dari core.js ($, sb, api, toast, fmtTime, fmtDur, wibDate, esc)
 let me, att, ws = '08:00:00', target = 480, slots = null, mode = 'break', prevOut = false, stream, track, scanning = false, busy = false, manual = false, onHome = false, watch = null, ready = false, today = '', opening = false, camGen = 0, lastPos = null, entering = null, refreshing = null, retryT, lastMk = 0, lastBad = '', ym = wibDate().slice(0, 7), jenis = 'izin', dp;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-let office = null, fixes = [], denied = false, gpsT, urgent = false;
+let office = null, fixes = [], denied = false, gpsT, gpsIdleT, gpsStart = 0, urgent = false;
 const fd = (d) => new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const calc = (r) => HOURS.summarize(r, Date.now(), target, ws), brk = (r) => HOURS.breakState(r, Date.now(), slots);
 const ST = { pending: ['pending', 'Menunggu'], approved: ['success', 'Disetujui'], rejected: ['failed', 'Ditolak'] };
@@ -66,7 +66,7 @@ function enterHome() {
   $('#gr').textContent = h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam'; $('#nm').textContent = me.full_name.split(' ')[0];
   setIcon('bi-hourglass-split'); setIdle('Memuat status absen...'); startGps(); refresh();
 }
-function leaveHome() { onHome = false; clearTimeout(retryT); stopCam(); clearInterval(gpsT); if (watch != null) { navigator.geolocation.clearWatch(watch); watch = null; } }
+function leaveHome() { onHome = false; clearTimeout(retryT); stopCam(); clearInterval(gpsT); clearTimeout(gpsIdleT); gpsIdleT = setTimeout(stopGps, 60000); }   // GPS dibiarkan hangat 60 dtk setelah pindah tab, supaya kembali ke Scan langsung siap
 // Baca ulang setting + absensi hari ini, baru kamera boleh diputuskan buka/tutup (satu proses sekaligus)
 function refresh() {
   return refreshing || (refreshing = (async () => {
@@ -76,28 +76,40 @@ function refresh() {
   })().finally(() => (refreshing = null)));
 }
 const setChip = (ok, t, out) => { $('#chip').className = 'chip' + (ok ? ' ok' : out ? ' out' : ''); $('#chip span').textContent = t; };
-// GPS: memakai fix PALING AKURAT dalam 12 dtk terakhir (bukan fix terakhir yang angkanya melompat), dan status dibandingkan dengan lokasi kantor
-const ACC_BAD = 100;
+// GPS cepat: (1) titik cepat dari jaringan/cache langsung saat mulai, (2) GPS akurat jalan paralel dan terus menyempurnakan,
+// (3) pemantauan tidak dimatikan tiap pindah tab, (4) status memakai lingkaran ketidakpastian: jelas di luar/di dalam langsung ditampilkan walau GPS masih kasar
+const FIX_TTL = 20000, ACC_SCAN = 150;
 const distM = (a, b, c, d) => { const r = (x) => (x * Math.PI) / 180, h = Math.sin(r(c - a) / 2) ** 2 + Math.cos(r(a)) * Math.cos(r(c)) * Math.sin(r(d - b) / 2) ** 2; return 2 * 6371000 * Math.asin(Math.sqrt(h)); };
-const bestFix = () => { const n = Date.now(); fixes = fixes.filter((f) => n - f.t < 12000); return fixes.reduce((b, f) => (!b || f.c.accuracy < b.c.accuracy ? f : b), null); };
+const score = (f, n) => f.c.accuracy + ((n - f.t) / 1000) * 2;   // fix lebih akurat menang, tapi tiap detik umurnya dihitung 2 m (pengguna bisa bergerak)
+const bestFix = () => { const n = Date.now(); fixes = fixes.filter((f) => n - f.t < FIX_TTL); return fixes.reduce((b, f) => (!b || score(f, n) < score(b, n) ? f : b), null); };
+const addFix = (p) => { denied = false; fixes.push({ c: p.coords, t: Math.min(Date.now(), p.timestamp || Date.now()) }); gpsChip(); };
+const gpsErr = (e) => { if (e.code === 1) { denied = true; setChip(false, 'Aktifkan izin lokasi'); } };
 function gpsChip() {
   if (denied || !onHome) return;
-  const f = bestFix(); if (!f) return setChip(false, 'Mencari sinyal GPS...');
-  if (f.c.accuracy > ACC_BAD) return setChip(false, 'Sinyal GPS lemah, menunggu lokasi akurat...');
-  if (!office) return setChip(true, 'Lokasi terbaca');
-  const d = Math.round(distM(office.lat, office.lng, f.c.latitude, f.c.longitude));   // rumus sama dengan server (api/scan.js)
-  if (d > office.r) return setChip(false, `Di luar area kantor: ${d} m (maks ${office.r} m)`, true);
-  setChip(true, f.c.accuracy > 50 ? 'Di area kantor (GPS kurang presisi)' : 'Di area kantor');
+  const f = bestFix(); if (!f) return setChip(false, Date.now() - gpsStart > 10000 ? 'GPS belum terbaca. Pindah ke area terbuka / aktifkan GPS' : 'Mencari lokasi...');
+  const a = f.c.accuracy; if (!office) return setChip(true, 'Lokasi terbaca');
+  const d = Math.round(distM(office.lat, office.lng, f.c.latitude, f.c.longitude)), r = office.r;   // rumus sama dengan server (api/scan.js)
+  const out = () => setChip(false, `Di luar area kantor: ${d} m (maks ${r} m)`, true);
+  if (d - a > r) return out();                                   // pasti di luar, bahkan di batas kemungkinan terbaik
+  if (a <= 50) return d <= r ? setChip(true, 'Di area kantor') : out();
+  if (d + a <= r) return setChip(true, 'Di area kantor');       // pasti di dalam
+  if (a <= 100) return d <= r ? setChip(true, 'Di area kantor (GPS kurang presisi)') : out();
+  setChip(false, 'Mengakurasi lokasi...');
 }
-function startGps() { if (watch != null) return; if (!navigator.geolocation) return setChip(false, 'GPS tidak didukung');
-  fixes = []; denied = false; setChip(false, 'Mencari lokasi...'); clearInterval(gpsT); gpsT = setInterval(gpsChip, 3000);
-  watch = navigator.geolocation.watchPosition((p) => { denied = false; fixes.push({ c: p.coords, t: Date.now() }); gpsChip(); },
-    (e) => { if (e.code === 1) { denied = true; setChip(false, 'Aktifkan izin lokasi'); } }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }); }
-const getPos = async () => {   // saat scan: tunggu fix yang akurat (maks 8 dtk) supaya jarak yang dikirim ke server tidak meleset
+function stopGps() { clearInterval(gpsT); clearTimeout(gpsIdleT); if (watch != null) { navigator.geolocation.clearWatch(watch); watch = null; } }
+function startGps() {
+  if (!navigator.geolocation) return setChip(false, 'GPS tidak didukung');
+  clearTimeout(gpsIdleT); clearInterval(gpsT); gpsT = setInterval(gpsChip, 2000);
+  if (watch != null) return gpsChip();   // masih hangat dari sebelumnya: langsung tampilkan hasil terakhir
+  fixes = []; denied = false; gpsStart = Date.now(); setChip(false, 'Mencari lokasi...');
+  navigator.geolocation.getCurrentPosition(addFix, gpsErr, { enableHighAccuracy: false, maximumAge: 30000, timeout: 8000 });   // titik cepat (jaringan/cache)
+  watch = navigator.geolocation.watchPosition(addFix, gpsErr, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });   // GPS akurat paralel
+}
+const getPos = async () => {   // saat scan: pakai titik terbaik; tunggu paling lama 5 dtk bila belum ada yang cukup akurat
   const t0 = Date.now(); let f = bestFix();
-  while ((!f || f.c.accuracy > ACC_BAD) && watch != null && Date.now() - t0 < 8000) { await sleep(400); f = bestFix(); }
+  while ((!f || f.c.accuracy > ACC_SCAN) && watch != null && Date.now() - t0 < 5000) { await sleep(300); f = bestFix(); }
   if (f) return f.c;
-  return new Promise((ok, no) => navigator.geolocation.getCurrentPosition((p) => ok(p.coords), () => no(new Error('Lokasi tidak terbaca. Aktifkan GPS dan izinkan akses lokasi.')), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }));
+  return new Promise((ok, no) => navigator.geolocation.getCurrentPosition((p) => ok(p.coords), () => no(new Error('Lokasi tidak terbaca. Aktifkan GPS dan izinkan akses lokasi.')), { enableHighAccuracy: true, timeout: 12000, maximumAge: 10000 }));
 };
 // Kamera otomatis: tutup setelah absen masuk; buka tepat saat jam keluar istirahat dibuka selama BREAK_WIN menit
 // (lewat itu tetap bisa lewat ketuk 2x). Saat istirahat, kamera baru dibuka ketika scan masuk dibuka.
@@ -242,7 +254,7 @@ $('#fl').onsubmit = async (e) => { e.preventDefault(); $('#err').textContent = '
 document.querySelectorAll('[data-v]').forEach((b) => (b.onclick = () => show(b.dataset.v)));
 document.querySelectorAll('[data-go]').forEach((b) => (b.onclick = () => show(b.dataset.go)));
 // Layar mati / pindah aplikasi: kamera pasti mati. Saat kembali, status dibaca ulang dari server dulu (bukan langsung membuka kamera)
-document.addEventListener('visibilitychange', () => { if (document.hidden) { stopCam(); manual = false; } else if (onHome) refresh(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { stopCam(); manual = false; stopGps(); } else if (onHome) { startGps(); refresh(); } });
 addEventListener('pagehide', () => stopCam());
 addEventListener('online', () => { if (!me && hasSaved()) enter(); });
 addEventListener('pageshow', (e) => { if (e.persisted && onHome) { stopCam(); ready = false; refresh(); } });
