@@ -208,6 +208,7 @@ $('#btn-install').onclick = () => dp ? dp.prompt() : toast('Buka menu browser la
 $('#btn-out').onclick = async () => { await sb.auth.signOut(); resetUi(); };
 sb.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_OUT' && me) resetUi(); });   // sesi habis / logout dari tab lain
 // ---------- Umum ----------
+$('#eye').onclick = () => { const p = $('#pw'), s = p.type === 'password'; p.type = s ? 'text' : 'password'; $('#eye i').className = s ? 'bi bi-eye-slash' : 'bi bi-eye'; };
 $('#fl').onsubmit = async (e) => { e.preventDefault(); $('#err').textContent = ''; const btn = e.submitter; btn.disabled = true; try { const { error } = await sb.auth.signInWithPassword({ email: $('#em').value, password: $('#pw').value }); if (error) return ($('#err').textContent = error.status === 400 ? 'Email atau password salah' : 'Koneksi bermasalah. Coba lagi.'); $('#pw').value = ''; await enter(); } finally { btn.disabled = false; } };
 document.querySelectorAll('[data-v]').forEach((b) => (b.onclick = () => show(b.dataset.v)));
 document.querySelectorAll('[data-go]').forEach((b) => (b.onclick = () => show(b.dataset.go)));

@@ -8,9 +8,26 @@ body{background:var(--bg-canvas,#F4F6F5);-webkit-tap-highlight-color:transparent
 .sp-logo:before,.sp-logo:after{content:"";position:absolute;inset:0;border-radius:28px;border:2px solid var(--brand-lime);animation:ring-soft 2s infinite}.sp-logo:after{animation-delay:1s}
 .sp-name{font-size:2rem;font-weight:800;letter-spacing:.12em;margin-top:2.25rem;animation:up .8s .4s both}.sp-tag{color:var(--text-sidebar-muted);animation:up .8s .6s both}.sp-by{position:absolute;left:0;right:0;bottom:calc(2.75rem + env(safe-area-inset-bottom,0px));text-align:center;font-size:.65rem;letter-spacing:.08em;color:var(--text-sidebar-muted);opacity:.7;animation:fadein .8s .8s both}@keyframes fadein{from{opacity:0}to{opacity:.7}}
 @keyframes ring-soft{to{transform:scale(1.5);opacity:0}}@keyframes pop{from{transform:scale(.6);opacity:0}}@keyframes ring{to{transform:scale(1.9);opacity:0}}@keyframes up{from{opacity:0;transform:translateY(14px)}}
-.login-hero{background:var(--brand-forest-dark);color:#fff;margin:-1.25rem -1.25rem 0;padding:3.5rem 1.5rem 4.5rem;border-radius:0 0 32px 32px}
-.login-hero h1{margin-top:1.6rem!important}
-.login-card{background:#fff;border-radius:var(--radius-xxl);box-shadow:var(--shadow-lg);padding:1.5rem;margin-top:-3rem;position:relative}
+.login-hero{position:relative;overflow:hidden;background:radial-gradient(120% 90% at 85% 0%,#0d3b25 0%,var(--brand-forest-dark) 60%);color:#fff;margin:-1.25rem -1.25rem 0;padding:3.25rem 1.5rem 5.5rem;border-radius:0 0 36px 36px}
+.login-hero:before,.login-hero:after{content:"";position:absolute;border-radius:50%;background:var(--brand-lime);pointer-events:none}
+.login-hero:before{width:220px;height:220px;right:-70px;top:-80px;opacity:.07}.login-hero:after{width:140px;height:140px;left:-50px;bottom:-40px;opacity:.05}
+.login-hero>*{position:relative;z-index:1}
+.login-hero .sp-logo{width:68px;height:68px;font-size:2.1rem;border-radius:22px;animation:pop .7s cubic-bezier(.2,1.4,.4,1) both;box-shadow:0 0 0 8px rgba(180,241,5,.12),0 0 0 18px rgba(180,241,5,.06)}
+.login-hero .sp-logo:before,.login-hero .sp-logo:after{display:none}
+.login-hero h1{color:#fff;font-weight:800;font-size:1.6rem;margin:1.9rem 0 .35rem;animation:up .7s .15s both}
+.login-hero p{color:var(--text-sidebar-muted);margin:0;animation:up .7s .25s both}
+.login-card{background:#fff;border-radius:var(--radius-xxl);box-shadow:var(--shadow-lg);padding:1.5rem;margin-top:-3rem;position:relative;animation:up .6s .2s both}
+.login-card h2{font-size:1.05rem;font-weight:800;margin:0 0 .15rem}.login-card .sub{color:var(--text-muted-green);font-size:.8rem;margin-bottom:1.1rem}
+.inp{position:relative}.inp>i{position:absolute;left:.95rem;top:50%;transform:translateY(-50%);color:var(--text-muted-green);pointer-events:none}
+.inp .form-control-custom{padding-left:2.6rem}.inp.pw .form-control-custom{padding-right:2.8rem}
+.inp .eye{position:absolute;right:.35rem;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--text-muted-green);width:40px;height:40px;font-size:1.1rem;display:grid;place-items:center}
+.login-help{text-align:center;font-size:.78rem;color:var(--text-muted-green);margin:1rem 0 0}
+.login-feats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;margin-top:1.25rem}
+.login-feats div{background:#fff;border-radius:var(--radius-lg);padding:.85rem .4rem;text-align:center;font-size:.72rem;font-weight:700;box-shadow:0 1px 3px rgba(5,28,18,.06)}
+.login-feats i{display:grid;place-items:center;width:38px;height:38px;margin:0 auto .45rem;border-radius:12px;background:var(--brand-forest-dark);color:var(--brand-lime);font-size:1.1rem}
+.login-foot{margin-top:auto;padding-top:1.5rem;text-align:center;font-size:.7rem;letter-spacing:.06em;color:var(--text-muted-green);opacity:.8}
+#v-login.on{display:flex;flex-direction:column;min-height:calc(100vh - 7.75rem);min-height:calc(100dvh - 7.75rem)}
+@supports selector(:has(*)){.app:has(#v-login.on){padding-bottom:1.25rem}#v-login.on{min-height:calc(100vh - 2.5rem);min-height:calc(100dvh - 2.5rem)}}
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}.top h1{font-size:1.35rem;font-weight:800;margin:0}.top small{color:var(--text-muted-green)}
 .clock{font-weight:800;font-size:1.25rem;font-variant-numeric:tabular-nums}
 .alert-green-card{min-height:150px;margin-bottom:1rem}
