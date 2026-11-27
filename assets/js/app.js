@@ -218,4 +218,7 @@ addEventListener('online', () => { if (!me && hasSaved()) enter(); });
 addEventListener('pageshow', (e) => { if (e.persisted && onHome) { stopCam(); ready = false; refresh(); } });
 setInterval(() => { $('#clk').textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta' }).replace(/\./g, ':'); const mk = Math.floor(Date.now() / 6e4); if (mk !== lastMk) { lastMk = mk; if (ready && att && !att.check_out && onHome) renderStatus(); } }, 1000);   // status hanya digambar ulang tiap menit (dulu tiap detik)
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
-(async () => { const t = sleep(600); try { await enter(); } finally { await t; $('#splash').classList.add('hide'); } })();   // splash tampil minimal 0,6 dtk, bukan 1,8 dtk tetap
+(async () => {   // di APK: splash dipegang native (HadirinStore) sampai tampilan siap; di browser/PWA: splash web minimal 1,6 dtk
+  const nat = window.HadirinStore, t = sleep(nat ? 0 : 1600); if (nat) $('#splash').style.display = 'none';
+  try { await enter(); } finally { await t; $('#splash').classList.add('hide'); try { nat?.appReady(); } catch {} }
+})();
