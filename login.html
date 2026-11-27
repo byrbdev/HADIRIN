@@ -9,8 +9,8 @@
 <script src="/assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script src="/config.js"></script><script src="/assets/js/core.js"></script>
 <script>
 (async()=>{const{data:{session}}=await sb.auth.getSession();if(!session)return document.documentElement.classList.remove('boot');
-const{data:p}=await sb.from('profiles').select('role,active').eq('id',session.user.id).single();
-if(p&&p.active)return location.replace(p.role==='admin'?'/dashboard':'/app');await sb.auth.signOut();document.documentElement.classList.remove('boot');})().catch(()=>document.documentElement.classList.remove('boot'));
+const{data:p,error:pe}=await sb.from('profiles').select('role,active').eq('id',session.user.id).single();
+if(p&&p.active)return location.replace(p.role==='admin'?'/dashboard':'/app');if(pe&&pe.code!=='PGRST116')return document.documentElement.classList.remove('boot');await sb.auth.signOut();document.documentElement.classList.remove('boot');})().catch(()=>document.documentElement.classList.remove('boot'));
 if(CFG.dev){$('#email').value=CFG.dev.email||'';$('#pw').value=CFG.dev.password||'';$('#err').insertAdjacentHTML('beforebegin','<div class="small text-muted mb-2">Mode dev: kredensial default terisi otomatis.</div>');}
 {const q=new URLSearchParams(location.search).get('e');if(q)$('#err').textContent=q;}
 $('#f').onsubmit=async e=>{e.preventDefault();const{error}=await sb.auth.signInWithPassword({email:($('#email').value.trim().includes('@')?$('#email').value.trim():$('#email').value.trim().toLowerCase()+'@byrb.vercel.app'),password:$('#pw').value});

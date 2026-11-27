@@ -12,9 +12,17 @@ function show(v) {
   ({ home: enterHome, riwayat: loadRiwayat, izin: loadIzin, profil: loadProfil }[v] || (() => {}))();
 }
 function resetUi() { me = att = null; ready = false; mode = 'break'; prevOut = false; manual = false; slots = null; today = ''; show('login'); }
+const hasSaved = () => { try { if (window.HadirinStore?.hasAuth()) return true; return Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k) && localStorage.getItem(k)); } catch { return false; } };
+let loginRetryT;
+async function getSessionSafe() {   // sesi tersimpan tapi refresh gagal karena jaringan (sinyal belum siap saat app dibuka): coba lagi dulu, jangan langsung ke layar login
+  let r = await sb.auth.getSession();
+  for (let i = 0; i < 2 && !r.data.session && r.error && hasSaved(); i++) { await sleep(1500 * (i + 1)); r = await sb.auth.getSession(); }
+  return r;
+}
 function enter() {   // dijaga: splash + login tidak boleh menjalankan enter() dua kali bersamaan
   return entering || (entering = (async () => {
-    const { data: { session } } = await sb.auth.getSession(); if (!session) return show('login');
+    const { data: { session }, error: se } = await getSessionSafe();
+    if (!session) { clearTimeout(loginRetryT); if (se && hasSaved()) { $('#err').textContent = 'Koneksi bermasalah. Sesi Anda tetap tersimpan, mencoba lagi...'; loginRetryT = setTimeout(() => !me && enter(), 5000); } return show('login'); }
     const { data: p, error } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
     if (error && !p && error.code !== 'PGRST116') { $('#err').textContent = 'Koneksi bermasalah. Coba lagi.'; return show('login'); }   // gangguan jaringan bukan alasan untuk logout
     if (p && p.role === 'admin' && p.active) return (location.href = '/dashboard');
@@ -206,6 +214,7 @@ document.querySelectorAll('[data-go]').forEach((b) => (b.onclick = () => show(b.
 // Layar mati / pindah aplikasi: kamera pasti mati. Saat kembali, status dibaca ulang dari server dulu (bukan langsung membuka kamera)
 document.addEventListener('visibilitychange', () => { if (document.hidden) { stopCam(); manual = false; } else if (onHome) refresh(); });
 addEventListener('pagehide', () => stopCam());
+addEventListener('online', () => { if (!me && hasSaved()) enter(); });
 addEventListener('pageshow', (e) => { if (e.persisted && onHome) { stopCam(); ready = false; refresh(); } });
 setInterval(() => { $('#clk').textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta' }).replace(/\./g, ':'); const mk = Math.floor(Date.now() / 6e4); if (mk !== lastMk) { lastMk = mk; if (ready && att && !att.check_out && onHome) renderStatus(); } }, 1000);   // status hanya digambar ulang tiap menit (dulu tiap detik)
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

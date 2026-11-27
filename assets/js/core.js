@@ -1,6 +1,14 @@
 // HADIRIN core: Supabase client, auth guard, layout Spark Admin, helper
 const CFG = window.HADIRIN_CONFIG || {};
-const sb = supabase.createClient(CFG.url || 'http://invalid.local', CFG.anon || 'missing');
+// Penyimpanan session. Di APK Android, MainActivity menyediakan window.HadirinStore (SharedPreferences native, tahan app ditutup/di-kill).
+// Di browser/PWA tidak ada HadirinStore, jadi tetap memakai localStorage bawaan (perilaku web tidak berubah).
+const NS = window.HadirinStore, LS = (f) => { try { return f(); } catch { return null; } };
+const authOpts = { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false };
+if (NS) authOpts.storage = {
+  getItem: (k) => { let v = NS.getItem(k); if (v == null) { v = LS(() => localStorage.getItem(k)); if (v != null) NS.setItem(k, v); } return v; },   // migrasi: sesi lama di localStorage dipindah ke native
+  setItem: (k, v) => { NS.setItem(k, v); LS(() => localStorage.removeItem(k)); },
+  removeItem: (k) => { NS.removeItem(k); LS(() => localStorage.removeItem(k)); } };
+const sb = supabase.createClient(CFG.url || 'http://invalid.local', CFG.anon || 'missing', { auth: authOpts });
 const $ = (s, r = document) => r.querySelector(s);
 const wibDate = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
 const fmtTime = (t) => t ? new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }).replace('.', ':') : '-';
@@ -140,6 +148,7 @@ async function bootAdmin(first) {
   if (!session) return location.replace('/login');
   const { data: me, error: pe } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
   if (me && me.role === 'employee' && me.active) return location.replace('/app');
+  if (!me && pe && pe.code !== 'PGRST116') return location.replace('/login?e=' + encodeURIComponent('Koneksi bermasalah. Coba lagi.'));   // gangguan jaringan bukan alasan untuk logout
   if (!me || me.role !== 'admin' || !me.active) { await sb.auth.signOut(); const why = pe ? 'Gagal membaca profiles: ' + pe.message : !me ? 'Akun belum punya data di tabel profiles. Jalankan: npm run seed' : 'Akun ini bukan admin'; return location.replace('/login?e=' + encodeURIComponent(why)); }
   _me = me; await loadScript('/assets/js/hours.js');
   buildShell(me, session); setActive(first); _cur = first; history.replaceState({ k: first }, '', location.pathname);
