@@ -1,6 +1,7 @@
 // HADIRIN app karyawan. Memakai helper dari core.js ($, sb, api, toast, fmtTime, fmtDur, wibDate, esc)
 let me, att, ws = '08:00:00', target = 480, slots = null, mode = 'break', prevOut = false, stream, track, scanning = false, busy = false, manual = false, onHome = false, watch = null, ready = false, today = '', opening = false, camGen = 0, lastPos = null, entering = null, refreshing = null, retryT, lastMk = 0, lastBad = '', ym = wibDate().slice(0, 7), jenis = 'izin', dp;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let office = null, fixes = [], denied = false, gpsT, urgent = false;
 const fd = (d) => new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const calc = (r) => HOURS.summarize(r, Date.now(), target, ws), brk = (r) => HOURS.breakState(r, Date.now(), slots);
 const ST = { pending: ['pending', 'Menunggu'], approved: ['success', 'Disetujui'], rejected: ['failed', 'Ditolak'] };
@@ -34,6 +35,7 @@ function enter() {   // dijaga: splash + login tidak boleh menjalankan enter() d
 async function loadSettings() {   // dibaca tiap membuka halaman Scan, supaya perubahan dari Setting admin langsung berlaku
   const { data: s } = await sb.from('settings').select('*').eq('id', 1).single();
   if (s?.work_start) ws = s.work_start; if (s?.target_minutes) target = s.target_minutes; slots = s?.break_slots || null;
+  office = s?.office_lat != null && s?.office_lng != null ? { lat: s.office_lat, lng: s.office_lng, r: s.radius_m || 100 } : null; gpsChip();
 }
 // ---------- Home ----------
 async function loadToday() {   // gagal baca = kamera TETAP tertutup (dulu dianggap 'belum absen' sehingga kamera terbuka sendiri)
@@ -64,7 +66,7 @@ function enterHome() {
   $('#gr').textContent = h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam'; $('#nm').textContent = me.full_name.split(' ')[0];
   setIcon('bi-hourglass-split'); setIdle('Memuat status absen...'); startGps(); refresh();
 }
-function leaveHome() { onHome = false; clearTimeout(retryT); stopCam(); if (watch != null) { navigator.geolocation.clearWatch(watch); watch = null; } }
+function leaveHome() { onHome = false; clearTimeout(retryT); stopCam(); clearInterval(gpsT); if (watch != null) { navigator.geolocation.clearWatch(watch); watch = null; } }
 // Baca ulang setting + absensi hari ini, baru kamera boleh diputuskan buka/tutup (satu proses sekaligus)
 function refresh() {
   return refreshing || (refreshing = (async () => {
@@ -73,10 +75,30 @@ function refresh() {
     if (onHome) startCam();
   })().finally(() => (refreshing = null)));
 }
-const setChip = (ok, t) => { $('#chip').className = 'chip' + (ok ? ' ok' : ''); $('#chip span').textContent = t; };
+const setChip = (ok, t, out) => { $('#chip').className = 'chip' + (ok ? ' ok' : out ? ' out' : ''); $('#chip span').textContent = t; };
+// GPS: memakai fix PALING AKURAT dalam 12 dtk terakhir (bukan fix terakhir yang angkanya melompat), dan status dibandingkan dengan lokasi kantor
+const ACC_BAD = 100;
+const distM = (a, b, c, d) => { const r = (x) => (x * Math.PI) / 180, h = Math.sin(r(c - a) / 2) ** 2 + Math.cos(r(a)) * Math.cos(r(c)) * Math.sin(r(d - b) / 2) ** 2; return 2 * 6371000 * Math.asin(Math.sqrt(h)); };
+const bestFix = () => { const n = Date.now(); fixes = fixes.filter((f) => n - f.t < 12000); return fixes.reduce((b, f) => (!b || f.c.accuracy < b.c.accuracy ? f : b), null); };
+function gpsChip() {
+  if (denied || !onHome) return;
+  const f = bestFix(); if (!f) return setChip(false, 'Mencari sinyal GPS...');
+  if (f.c.accuracy > ACC_BAD) return setChip(false, 'Sinyal GPS lemah, menunggu lokasi akurat...');
+  if (!office) return setChip(true, 'Lokasi terbaca');
+  const d = Math.round(distM(office.lat, office.lng, f.c.latitude, f.c.longitude));   // rumus sama dengan server (api/scan.js)
+  if (d > office.r) return setChip(false, `Di luar area kantor: ${d} m (maks ${office.r} m)`, true);
+  setChip(true, f.c.accuracy > 50 ? 'Di area kantor (GPS kurang presisi)' : 'Di area kantor');
+}
 function startGps() { if (watch != null) return; if (!navigator.geolocation) return setChip(false, 'GPS tidak didukung');
-  watch = navigator.geolocation.watchPosition((p) => { lastPos = { c: p.coords, t: Date.now() }; setChip(true, `Lokasi siap (±${Math.round(p.coords.accuracy)} m)`); }, () => setChip(false, 'Aktifkan izin lokasi'), { enableHighAccuracy: true, maximumAge: 10000 }); }
-const getPos = () => lastPos && Date.now() - lastPos.t < 20000 ? Promise.resolve(lastPos.c) : new Promise((ok, no) => navigator.geolocation.getCurrentPosition((p) => ok(p.coords), () => no(new Error('Lokasi tidak terbaca. Aktifkan GPS dan izinkan akses lokasi.')), { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }));
+  fixes = []; denied = false; setChip(false, 'Mencari lokasi...'); clearInterval(gpsT); gpsT = setInterval(gpsChip, 3000);
+  watch = navigator.geolocation.watchPosition((p) => { denied = false; fixes.push({ c: p.coords, t: Date.now() }); gpsChip(); },
+    (e) => { if (e.code === 1) { denied = true; setChip(false, 'Aktifkan izin lokasi'); } }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }); }
+const getPos = async () => {   // saat scan: tunggu fix yang akurat (maks 8 dtk) supaya jarak yang dikirim ke server tidak meleset
+  const t0 = Date.now(); let f = bestFix();
+  while ((!f || f.c.accuracy > ACC_BAD) && watch != null && Date.now() - t0 < 8000) { await sleep(400); f = bestFix(); }
+  if (f) return f.c;
+  return new Promise((ok, no) => navigator.geolocation.getCurrentPosition((p) => ok(p.coords), () => no(new Error('Lokasi tidak terbaca. Aktifkan GPS dan izinkan akses lokasi.')), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }));
+};
 // Kamera otomatis: tutup setelah absen masuk; buka tepat saat jam keluar istirahat dibuka selama BREAK_WIN menit
 // (lewat itu tetap bisa lewat ketuk 2x). Saat istirahat, kamera baru dibuka ketika scan masuk dibuka.
 // Jam diatur admin di halaman Setting (settings.break_slots; bawaan HOURS.BREAK_SLOTS) dan dicek ulang di server (api/scan.js).
@@ -186,17 +208,24 @@ const setDates = () => { $('#ds').value = $('#de').value = wibDate(); };
 async function loadIzin() {
   if (!$('#ds').value) setDates();
   const d = (await sb.from('leaves').select('*').eq('user_id', me.id).order('created_at', { ascending: false })).data || [];
-  $('#llist').innerHTML = d.map((l) => `<div class="sheet"><div class="row2"><b class="text-capitalize">${l.type}</b><span class="badge-table ${ST[l.status][0]}">${ST[l.status][1]}</span></div><div class="mut">${fd(l.start_date)} - ${fd(l.end_date)}</div><div class="mt-1">${esc(l.reason)}</div></div>`).join('') || '<div class="sheet mut text-center">Belum ada pengajuan</div>';
+  const URG = /^\[URGENT(?: - KERJA DIHENTIKAN (\d{2}:\d{2}))?\]\s*/;   // penanda urgent disimpan di awal alasan (terbaca juga oleh admin)
+  $('#llist').innerHTML = d.map((l) => { const m = URG.exec(l.reason || ''), why = m ? l.reason.slice(m[0].length) : l.reason, st = m ? ['failed', 'Selesai'] : ST[l.status];
+    return `<div class="sheet"><div class="row2"><b class="text-capitalize">${l.type}${m ? '<span class="urg-tag">URGENT</span>' : ''}</b><span class="badge-table ${st[0]}">${st[1]}</span></div><div class="mut">${fd(l.start_date)} - ${fd(l.end_date)}</div><div class="mt-1">${esc(why)}</div>${m?.[1] ? `<div class="urg-stop"><i class="bi bi-stopwatch-fill"></i>Jam kerja bersih dihentikan otomatis pukul ${m[1]}</div>` : ''}</div>`; }).join('') || '<div class="sheet mut text-center">Belum ada pengajuan</div>';
 }
+const setUrgent = (on) => { urgent = on; $('#urg').classList.toggle('on', on); $('#urg-note').classList.toggle('d-none', !on); $('#fi button[type=submit]').classList.toggle('urgent-go', on);
+  $('#fi button[type=submit]').textContent = on ? 'Kirim Urgent & Hentikan Kerja' : 'Kirim Pengajuan'; if (on) $('#ds').value = wibDate(); $('#ds').readOnly = on; };
+$('#urg').onclick = () => setUrgent(!urgent);
 $('#seg').onclick = (e) => { const b = e.target.closest('[data-j]'); if (!b) return; jenis = b.dataset.j; $('#seg').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); };
 $('#fi').onsubmit = async (e) => {
   e.preventDefault(); if ($('#de').value < $('#ds').value) return toast('Tanggal selesai harus setelah mulai', false);
+  if (urgent && !confirm('Mode URGENT akan menghentikan jam kerja bersih yang sedang berjalan sekarang dan tidak bisa dibatalkan. Lanjutkan?')) return;
   const btn = e.submitter; btn.disabled = true;
   try {
     let path = null; const f = $('#file').files[0];
     if (f) { path = `${me.id}/${Date.now()}.jpg`; const { error } = await sb.storage.from('leave-files').upload(path, await shrink(f), { contentType: 'image/jpeg' }); if (error) throw error; }
-    const { error } = await sb.from('leaves').insert({ user_id: me.id, type: jenis, start_date: $('#ds').value, end_date: $('#de').value, reason: $('#rs').value, attachment_path: path }); if (error) throw error;
-    toast('Pengajuan terkirim'); e.target.reset(); setDates(); loadIzin();
+    if (urgent) { const r = await api('/api/urgent', 'POST', { type: jenis, end_date: $('#de').value, reason: $('#rs').value, attachment_path: path }); toast(r.stopped ? `Jam kerja bersih dihentikan pukul ${r.time}. Pengajuan urgent terkirim` : 'Pengajuan urgent terkirim'); }
+    else { const { error } = await sb.from('leaves').insert({ user_id: me.id, type: jenis, start_date: $('#ds').value, end_date: $('#de').value, reason: $('#rs').value, attachment_path: path }); if (error) throw error; toast('Pengajuan terkirim'); }
+    e.target.reset(); setUrgent(false); setDates(); loadIzin();
   } catch (err) { toast(err.message, false); } finally { btn.disabled = false; }
 };
 // ---------- Profil ----------
